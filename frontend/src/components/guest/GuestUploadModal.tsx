@@ -1,7 +1,14 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Camera, CheckCircle2, Loader2, RefreshCw, X } from 'lucide-react';
+import {
+  Camera,
+  CheckCircle2,
+  ImagePlus,
+  Loader2,
+  RefreshCw,
+  X,
+} from 'lucide-react';
 import { CapturedShot } from './guestGalleryConstants';
 
 interface GuestUploadModalProps {
@@ -180,10 +187,10 @@ export default function GuestUploadModal({
     onClose();
   };
 
-  return (
-    <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
-      {!isCameraActive ? (
-        <div className="w-full max-w-md bg-neutral-900 border border-white/15 rounded-t-3xl sm:rounded-3xl p-5 space-y-4 shadow-2xl">
+  if (!isCameraActive) {
+    return (
+      <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-neutral-900 border border-white/15 rounded-3xl p-6 space-y-4 shadow-2xl">
           <div className="flex items-center justify-between">
             <div>
               <span
@@ -248,129 +255,137 @@ export default function GuestUploadModal({
             </button>
           </div>
         </div>
-      ) : (
-        <form
-          onSubmit={onSubmitUpload}
-          className="w-full max-w-md bg-neutral-900 border border-white/15 rounded-t-3xl sm:rounded-3xl p-4 sm:p-5 space-y-3.5 shadow-2xl max-h-[94vh] overflow-y-auto"
-        >
-          <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <span
-                className="text-[11px] font-bold uppercase tracking-wider block truncate"
-                style={{ color: themeColor }}
-              >
-                {guestNameInput.trim()} • Kamera Langsung
-              </span>
-              <h3 className="text-base font-extrabold text-white">
-                Abadikan Momen Acara
-              </h3>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <span
-                className={`px-2.5 py-1 rounded-full text-[11px] font-extrabold border ${
-                  capturedQueue.length >= remainingQuota
-                    ? 'bg-amber-500/20 text-amber-300 border-amber-400/40'
-                    : 'bg-white/10 text-white border-white/15'
-                }`}
-              >
-                {capturedQueue.length} / {remainingQuota} Foto
-              </span>
+      </div>
+    );
+  }
+
+  return (
+    <form
+      onSubmit={onSubmitUpload}
+      className="fixed inset-0 z-50 h-[100dvh] w-full bg-black overflow-hidden flex flex-col justify-between select-none"
+    >
+      {/* Full-Screen Live Camera Viewfinder */}
+      <div className="absolute inset-0 z-0 bg-black flex items-center justify-center">
+        {cameraError ? (
+          <div className="p-6 max-w-sm text-center space-y-4 z-10">
+            <p className="text-xs sm:text-sm text-amber-300 font-medium leading-relaxed">
+              {cameraError}
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 pt-1">
               <button
                 type="button"
-                onClick={handleCloseModal}
-                disabled={uploading}
-                className="p-1.5 rounded-full text-neutral-400 hover:text-white disabled:opacity-40"
+                onClick={() => void startLiveCamera()}
+                className="w-full sm:w-auto px-5 py-3 rounded-xl text-xs font-extrabold text-neutral-950 flex items-center justify-center gap-1.5"
+                style={{ backgroundColor: themeColor }}
               >
-                <X className="w-5 h-5" />
+                <RefreshCw className="w-4 h-4" />
+                <span>Hubungkan Ulang</span>
+              </button>
+              <button
+                type="button"
+                onClick={onOpenFilePicker}
+                className="w-full sm:w-auto px-5 py-3 rounded-xl text-xs font-bold bg-neutral-900 hover:bg-neutral-800 text-neutral-100 border border-white/15"
+              >
+                Pilih dari Galeri
               </button>
             </div>
           </div>
+        ) : (
+          <>
+            <video
+              ref={handleVideoRef}
+              autoPlay
+              playsInline
+              muted
+              className={`w-full h-full object-cover ${
+                cameraFacingMode === 'user' ? '-scale-x-100' : ''
+              }`}
+            />
 
-          <div className="relative rounded-2xl overflow-hidden bg-black aspect-[4/3] flex items-center justify-center border border-white/15">
-            {cameraError ? (
-              <div className="p-6 text-center space-y-3">
-                <p className="text-xs text-amber-300 font-medium leading-relaxed">
-                  {cameraError}
-                </p>
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => void startLiveCamera()}
-                    className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-extrabold text-neutral-950 flex items-center justify-center gap-1.5"
-                    style={{ backgroundColor: themeColor }}
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    <span>Hubungkan Ulang</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={onOpenFilePicker}
-                    className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-white/15"
-                  >
-                    Pilih dari Galeri
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <video
-                  ref={handleVideoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className={`w-full h-full object-cover ${
-                    cameraFacingMode === 'user' ? '-scale-x-100' : ''
-                  }`}
-                />
-
-                {shutterFlash && (
-                  <div className="absolute inset-0 bg-white/80 pointer-events-none transition-opacity duration-150" />
-                )}
-
-                {capturedQueue.length >= remainingQuota && (
-                  <div className="absolute inset-x-3 bottom-3 px-3.5 py-2 rounded-xl bg-black/80 backdrop-blur-md border border-amber-400/40 text-center">
-                    <p className="text-xs font-bold text-amber-300">
-                      Batas kuota ({remainingQuota} foto) telah tercapai.
-                      Silakan unggah koleksi di bawah atau hapus foto untuk
-                      mengambil ulang.
-                    </p>
-                  </div>
-                )}
-
-                <button
-                  type="button"
-                  onClick={handleFlipCamera}
-                  disabled={uploading}
-                  className="absolute top-3 right-3 px-3 py-1.5 rounded-full bg-black/65 hover:bg-black/85 backdrop-blur-md border border-white/20 text-xs font-bold text-white flex items-center gap-1.5"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  <span>Ganti Kamera</span>
-                </button>
-              </>
+            {shutterFlash && (
+              <div className="absolute inset-0 bg-white/80 pointer-events-none transition-opacity duration-150" />
             )}
-          </div>
+          </>
+        )}
+      </div>
 
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between text-[11px] text-neutral-400">
-              <span>
-                {capturedQueue.length === 0
-                  ? 'Ketuk Ambil Foto di bawah untuk mulai memotret'
-                  : `Koleksi siap diunggah (${capturedQueue.length} foto)`}
-              </span>
-              {capturedQueue.length > 0 && (
-                <span className="text-neutral-300 font-semibold">
+      {/* Top Floating HUD Bar */}
+      <div className="relative z-20 flex items-center justify-between gap-2 px-4 pt-5 pb-8 bg-gradient-to-b from-black/85 via-black/45 to-transparent">
+        <button
+          type="button"
+          disabled={uploading}
+          onClick={stopLiveCamera}
+          className="px-3.5 py-2 rounded-full bg-black/55 hover:bg-black/75 backdrop-blur-md border border-white/15 text-xs font-bold text-white flex items-center gap-1.5 truncate max-w-[44%]"
+        >
+          <span>&larr;</span>
+          <span className="truncate">{guestNameInput.trim()}</span>
+        </button>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <span
+            className={`px-3 py-1.5 rounded-full text-xs font-extrabold backdrop-blur-md border ${
+              capturedQueue.length >= remainingQuota
+                ? 'bg-amber-500/25 text-amber-200 border-amber-400/50'
+                : 'bg-black/55 text-white border-white/20'
+            }`}
+          >
+            {capturedQueue.length} / {remainingQuota} Foto
+          </span>
+
+          {!cameraError && (
+            <button
+              type="button"
+              onClick={handleFlipCamera}
+              disabled={uploading}
+              aria-label="Ganti Kamera"
+              className="px-3 py-1.5 rounded-full bg-black/55 hover:bg-black/75 backdrop-blur-md border border-white/20 text-xs font-bold text-white flex items-center gap-1.5"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span className="hidden xs:inline">Ganti Kamera</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={handleCloseModal}
+            disabled={uploading}
+            aria-label="Tutup kamera"
+            className="p-2 rounded-full bg-black/55 hover:bg-black/75 backdrop-blur-md border border-white/20 text-white disabled:opacity-40"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Bottom Floating Camera Dock (Filmstrip + Shutter + Submit) */}
+      <div className="relative z-20 px-4 pb-8 pt-10 bg-gradient-to-t from-black/95 via-black/70 to-transparent space-y-4">
+        <div className="max-w-md mx-auto w-full space-y-3">
+          {capturedQueue.length >= remainingQuota && (
+            <div className="px-3.5 py-2 rounded-xl bg-black/80 backdrop-blur-md border border-amber-400/40 text-center">
+              <p className="text-xs font-semibold text-amber-200">
+                Batas kuota ({remainingQuota} foto) telah tercapai. Ketuk Unggah
+                untuk mengirim atau hapus foto untuk mengambil ulang.
+              </p>
+            </div>
+          )}
+
+          {/* Horizontal Filmstrip Tray */}
+          {capturedQueue.length > 0 ? (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-[11px] text-neutral-300 px-1">
+                <span className="font-medium">
+                  Koleksi siap diunggah ({capturedQueue.length} foto)
+                </span>
+                <span>
                   Sisa kuota:{' '}
                   {Math.max(0, remainingQuota - capturedQueue.length)}
                 </span>
-              )}
-            </div>
-
-            {capturedQueue.length > 0 && (
+              </div>
               <div className="flex items-center gap-2.5 overflow-x-auto pb-1 pt-0.5">
                 {capturedQueue.map((shot, idx) => (
                   <div
                     key={shot.id}
-                    className="relative w-16 h-16 rounded-xl overflow-hidden border border-white/20 bg-neutral-950 shrink-0"
+                    className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden border border-white/25 bg-neutral-950 shrink-0 shadow-lg"
                   >
                     <img
                       src={shot.previewUrl}
@@ -392,76 +407,89 @@ export default function GuestUploadModal({
                   </div>
                 ))}
               </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            <p className="text-center text-xs text-white/80 font-medium drop-shadow">
+              Ketuk tombol di bawah untuk mengambil foto
+            </p>
+          )}
 
-          <div className="flex items-center gap-2 pt-1">
-            <button
-              type="button"
-              disabled={uploading}
-              onClick={stopLiveCamera}
-              className="px-3 py-3.5 rounded-xl text-xs font-bold bg-neutral-800 hover:bg-neutral-700 text-neutral-200 disabled:opacity-40 shrink-0"
-            >
-              &larr; Nama
-            </button>
-
-            {!cameraError && (
+          {/* Main Camera Controls Bar */}
+          <div className="grid grid-cols-3 items-center gap-3 pt-1">
+            {/* Left: Gallery / Flip */}
+            <div className="flex justify-start">
               <button
                 type="button"
                 disabled={uploading || capturedQueue.length >= remainingQuota}
-                onClick={handleCapturePhoto}
-                className={`flex-1 py-3.5 px-4 rounded-xl text-xs sm:text-sm font-extrabold flex items-center justify-center gap-1.5 shadow-lg active:scale-95 transition ${
-                  capturedQueue.length >= remainingQuota
-                    ? 'bg-neutral-800 text-neutral-500 border border-white/10 cursor-not-allowed'
-                    : capturedQueue.length > 0
-                      ? 'bg-white text-neutral-950 hover:bg-neutral-200'
-                      : 'text-neutral-950'
-                }`}
-                style={
-                  capturedQueue.length === 0 &&
-                  capturedQueue.length < remainingQuota
-                    ? { backgroundColor: themeColor }
-                    : undefined
-                }
+                onClick={onOpenFilePicker}
+                className="px-3.5 py-2.5 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-xs font-semibold text-white flex items-center gap-1.5 disabled:opacity-40 transition"
               >
-                <Camera className="w-4 h-4 stroke-[2.5]" />
-                <span>
-                  {capturedQueue.length >= remainingQuota
-                    ? 'Kuota Terpenuhi'
-                    : capturedQueue.length > 0
-                      ? 'Ambil Lagi'
-                      : 'Ambil Foto'}
-                </span>
+                <ImagePlus className="w-4 h-4" />
+                <span>Galeri</span>
               </button>
-            )}
+            </div>
 
-            <button
-              type="submit"
-              disabled={uploading || capturedQueue.length === 0}
-              className="flex-1 py-3.5 px-4 rounded-xl text-xs sm:text-sm font-extrabold text-neutral-950 flex items-center justify-center gap-1.5 shadow-xl disabled:opacity-35 active:scale-95 transition"
-              style={{ backgroundColor: themeColor }}
-            >
-              {uploading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Mengunggah...</span>
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="w-4 h-4 stroke-[2.5]" />
-                  <span>
-                    Unggah
-                    {capturedQueue.length > 0
-                      ? ` (${capturedQueue.length})`
-                      : ''}
+            {/* Center: Full-Screen Tactile Shutter Button */}
+            <div className="flex flex-col items-center justify-center">
+              {!cameraError && (
+                <button
+                  type="button"
+                  disabled={uploading || capturedQueue.length >= remainingQuota}
+                  onClick={handleCapturePhoto}
+                  aria-label="Ambil Foto"
+                  className="group relative w-20 h-20 rounded-full border-4 border-white flex items-center justify-center p-1.5 shadow-[0_0_30px_rgba(0,0,0,0.6)] active:scale-95 disabled:opacity-35 transition-transform"
+                >
+                  <span
+                    className="w-full h-full rounded-full transition-transform group-active:scale-90 flex items-center justify-center"
+                    style={{
+                      backgroundColor:
+                        capturedQueue.length >= remainingQuota
+                          ? '#525252'
+                          : '#FFFFFF',
+                    }}
+                  >
+                    <Camera className="w-6 h-6 text-neutral-950 stroke-[2.2]" />
                   </span>
-                </>
+                </button>
               )}
-            </button>
+              <span className="text-[11px] font-bold text-white/90 mt-1.5 tracking-wide">
+                {capturedQueue.length >= remainingQuota
+                  ? 'Kuota Terpenuhi'
+                  : capturedQueue.length > 0
+                    ? 'Ambil Lagi'
+                    : 'Ambil Foto'}
+              </span>
+            </div>
+
+            {/* Right: Submit / Unggah Button */}
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={uploading || capturedQueue.length === 0}
+                className="px-4 py-3 rounded-full text-xs sm:text-sm font-extrabold text-neutral-950 flex items-center justify-center gap-1.5 shadow-xl disabled:opacity-30 active:scale-95 transition"
+                style={{ backgroundColor: themeColor }}
+              >
+                {uploading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Mengunggah</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4 stroke-[2.5]" />
+                    <span>
+                      Unggah
+                      {capturedQueue.length > 0
+                        ? ` (${capturedQueue.length})`
+                        : ''}
+                    </span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
-        </form>
-      )}
-    </div>
+        </div>
+      </div>
+    </form>
   );
 }
-
