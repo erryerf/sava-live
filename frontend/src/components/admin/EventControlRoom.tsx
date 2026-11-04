@@ -700,28 +700,6 @@ export default function EventControlRoom({
               </div>
             </div>
 
-            {/* Opsi 2: Kabel USB Kamera (Hot-Folder Otomatis) */}
-            {bridgeStatus?.hot_folder && (
-              <div className="p-3.5 rounded-md bg-[#0B0B0A] border border-white/[0.07] space-y-2 text-xs">
-                <div className="font-medium text-neutral-200">
-                  2. Kabel USB Kamera (Hot-Folder)
-                </div>
-                <p className="text-[11px] text-neutral-400 leading-relaxed">
-                  Arahkan lokasi simpan EOS Utility / Sony Remote ke folder ini:
-                </p>
-                <button
-                  type="button"
-                  onClick={() =>
-                    copyText(bridgeStatus.hot_folder, 'Lokasi Hot-Folder')
-                  }
-                  className="w-full text-left p-2 rounded bg-[#141413] border border-white/[0.07] font-mono text-[10px] text-neutral-300 hover:border-white/20 flex items-center justify-between gap-2"
-                >
-                  <span className="truncate">{bridgeStatus.hot_folder}</span>
-                  <Copy className="w-3.5 h-3.5 shrink-0 text-neutral-500" />
-                </button>
-              </div>
-            )}
-
             {/* Tombol Simulasi Jepret Kamera Fotografer */}
             <button
               type="button"
@@ -781,13 +759,13 @@ export default function EventControlRoom({
                 Pilih banyak foto langsung dari galeri iPad / Android atau kartu memori kamera.
               </p>
 
-              {/* Opsi Tambahan untuk Sinkronisasi Folder Laptop jika digunakan */}
+              {/* Opsi Tambahan untuk Tethering Kabel Laptop jika dibutuhkan */}
               <button
                 type="button"
                 onClick={() => setShowFtpAdvanced((prev) => !prev)}
-                className="w-full flex items-center justify-between text-[11px] font-medium text-neutral-400 hover:text-white py-1"
+                className="w-full flex items-center justify-between text-[11px] font-medium text-neutral-500 hover:text-neutral-300 py-1"
               >
-                <span>Opsi Lanjutan Sinkronisasi Folder</span>
+                <span>Opsi Lanjutan Kabel USB Laptop</span>
                 {showFtpAdvanced ? (
                   <ChevronUp className="w-3.5 h-3.5" />
                 ) : (
@@ -796,7 +774,28 @@ export default function EventControlRoom({
               </button>
 
               {showFtpAdvanced && (
-                <div className="mt-2 space-y-2">
+                <div className="mt-2 space-y-2.5 pt-2 border-t border-white/[0.05]">
+                  {bridgeStatus?.hot_folder && (
+                    <div className="p-3 rounded bg-[#0B0B0A] border border-white/[0.07] space-y-1.5 text-xs">
+                      <div className="font-medium text-neutral-300 text-[11px]">
+                        Hot-Folder USB Tethering Laptop
+                      </div>
+                      <p className="text-[10px] text-neutral-500 leading-relaxed">
+                        Arahkan folder simpan Canon EOS Utility / Sony Remote ke:
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          copyText(bridgeStatus.hot_folder, 'Lokasi Hot-Folder')
+                        }
+                        className="w-full text-left p-1.5 rounded bg-[#141413] border border-white/[0.07] font-mono text-[9px] text-neutral-400 hover:border-white/20 flex items-center justify-between gap-2"
+                      >
+                        <span className="truncate">{bridgeStatus.hot_folder}</span>
+                        <Copy className="w-3 h-3 shrink-0 text-neutral-500" />
+                      </button>
+                    </div>
+                  )}
+
                   <button
                     type="button"
                     onClick={() => void handleToggleFolderSync()}
