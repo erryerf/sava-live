@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Camera,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Download,
@@ -192,7 +193,7 @@ export default function GuestGalleryClient({ slug }: GuestGalleryClientProps) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const touchStartXRef = useRef<number | null>(null);
 
-  // Guest Upload & Live Camera State
+  // Guest Upload & Continuous Live Camera State
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -203,8 +204,10 @@ export default function GuestGalleryClient({ slug }: GuestGalleryClientProps) {
     'environment' | 'user'
   >('environment');
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [shutterFlash, setShutterFlash] = useState(false);
+  const [capturedQueue, setCapturedQueue] = useState<
+    { id: string; file: File; previewUrl: string }[]
+  >([]);
   const [guestNameInput, setGuestNameInput] = useState('');
   const [uploading, setUploading] = useState(false);
   const [usedQuota, setUsedQuota] = useState(0);
@@ -633,8 +636,20 @@ export default function GuestGalleryClient({ slug }: GuestGalleryClientProps) {
   };
 
   const handleCapturePhotoFromStream = () => {
+    if (capturedQueue.length >= remainingQuota) {
+      showToast(
+        `Kuota foto penuh (${uploadLimit}/${uploadLimit}). Klik Kirim untuk membagikan! ✨`,
+        'warning',
+      );
+      return;
+    }
+
     const video = videoRef.current;
     if (!video || !video.videoWidth || !video.videoHeight) return;
+
+    // Trigger subtle shutter flash without stopping camera stream
+    setShutterFlash(true);
+    setTimeout(() => setShutterFlash(false), 140);
 
     const canvas = document.createElement('canvas');
     canvas.width = video.videoWidth;
@@ -651,18 +666,43 @@ export default function GuestGalleryClient({ slug }: GuestGalleryClientProps) {
     canvas.toBlob(
       (blob) => {
         if (!blob) return;
-        const capturedFile = new File([blob], `camera-${Date.now()}.jpg`, {
+        const shotId = `shot-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+        const capturedFile = new File([blob], `${shotId}.jpg`, {
           type: 'image/jpeg',
         });
-        if (previewUrl) URL.revokeObjectURL(previewUrl);
         const url = URL.createObjectURL(capturedFile);
-        stopLiveCamera();
-        setSelectedFile(capturedFile);
-        setPreviewUrl(url);
+
+        setCapturedQueue((prev) => {
+          if (prev.length >= remainingQuota) {
+            URL.revokeObjectURL(url);
+            return prev;
+          }
+          const next = [
+            ...prev,
+            { id: shotId, file: capturedFile, previewUrl: url },
+          ];
+          if (next.length >= remainingQuota) {
+            showToast(
+              `Batas kuota (${uploadLimit}/${uploadLimit}) tercapai! Klik Kirim di bawah 🚀`,
+              'info',
+            );
+          }
+          return next;
+        });
       },
       'image/jpeg',
       0.92,
     );
+  };
+
+  const handleRemoveCapturedShot = (shotId: string) => {
+    setCapturedQueue((prev) => {
+      const target = prev.find((item) => item.id === shotId);
+      if (target) {
+        URL.revokeObjectURL(target.previewUrl);
+      }
+      return prev.filter((item) => item.id !== shotId);
+    });
   };
 
   // FAB Tap -> Quota Check -> Open Name Input Modal First before Camera
@@ -674,37 +714,47 @@ export default function GuestGalleryClient({ slug }: GuestGalleryClientProps) {
       );
       return;
     }
-    setSelectedFile(null);
-    setPreviewUrl(null);
+    setCapturedQueue((prev) => {
+      prev.forEach((item) => URL.revokeObjectURL(item.previewUrl));
+      return [];
+    });
     setIsCameraActive(false);
     setCameraError(null);
     setIsUploadModalOpen(true);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    stopLiveCamera();
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    const url = URL.createObjectURL(file);
-    setSelectedFile(file);
-    setPreviewUrl(url);
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    setCapturedQueue((prev) => {
+      const availableSlots = Math.max(0, remainingQuota - prev.length);
+      const allowedFiles = files.slice(0, availableSlots);
+      const newItems = allowedFiles.map((file) => ({
+        id: `file-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        file,
+        previewUrl: URL.createObjectURL(file),
+      }));
+      return [...prev, ...newItems];
+    });
+    setIsCameraActive(true);
     setIsUploadModalOpen(true);
     e.target.value = '';
   };
 
   const closeUploadModal = () => {
     stopLiveCamera();
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setSelectedFile(null);
-    setPreviewUrl(null);
+    setCapturedQueue((prev) => {
+      prev.forEach((item) => URL.revokeObjectURL(item.previewUrl));
+      return [];
+    });
     setCameraError(null);
     setIsUploadModalOpen(false);
   };
 
   const handleConfirmUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedFile || uploading) return;
+    if (capturedQueue.length === 0 || uploading) return;
     if (!guestNameInput.trim()) {
       showToast('Isi nama Anda dulu ya! 😊', 'warning');
       return;
@@ -713,62 +763,75 @@ export default function GuestGalleryClient({ slug }: GuestGalleryClientProps) {
     setUploading(true);
     try {
       const guestIdentifier = getOrCreateGuestIdentifier();
+      const totalSent = capturedQueue.length;
 
       if (isDemoMode) {
-        const dataUrl = await new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onload = () =>
-            resolve(
-              typeof reader.result === 'string' ? reader.result : previewUrl!,
-            );
-          reader.onerror = () => resolve(previewUrl!);
-          reader.readAsDataURL(selectedFile);
-        });
-        const demoPhoto: PhotoItem = {
-          id: `guest-local-${Date.now()}`,
-          url: dataUrl,
-          source: 'guest',
-          guest_name: guestNameInput.trim() || 'Tamu',
-          created_at: new Date().toISOString(),
-        };
-        addLocalEventPhoto(slug, demoPhoto);
+        const newDemoPhotos: PhotoItem[] = [];
+        let latestQuota = usedQuota;
+
+        for (const item of capturedQueue) {
+          const dataUrl = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () =>
+              resolve(
+                typeof reader.result === 'string'
+                  ? reader.result
+                  : item.previewUrl,
+              );
+            reader.onerror = () => resolve(item.previewUrl);
+            reader.readAsDataURL(item.file);
+          });
+
+          const demoPhoto: PhotoItem = {
+            id: `guest-local-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            url: dataUrl,
+            source: 'guest',
+            guest_name: guestNameInput.trim() || 'Tamu',
+            created_at: new Date().toISOString(),
+          };
+          addLocalEventPhoto(slug, demoPhoto);
+          newDemoPhotos.unshift(demoPhoto);
+          latestQuota = incrementLocalGuestUploadCount(slug);
+        }
+
         setPhotosByTab((prev) => ({
           ...prev,
-          guest: [demoPhoto, ...prev.guest],
+          guest: [...newDemoPhotos, ...prev.guest],
         }));
-        const nextCount = incrementLocalGuestUploadCount(slug);
-        setUsedQuota(nextCount);
-        setSelectedFile(null);
-        setPreviewUrl(null);
-        setIsUploadModalOpen(false);
+        setUsedQuota(latestQuota);
+        closeUploadModal();
         setActiveTab('guest');
         showToast(
-          'Foto terkirim! Terima kasih sudah berbagi momen ✨',
+          `${totalSent} foto terkirim! Terima kasih sudah berbagi momen ✨`,
           'success',
         );
         return;
       }
 
-      const presigned = await requestGuestPresignedUrl(slug, {
-        filename: selectedFile.name,
-        content_type: selectedFile.type || 'image/jpeg',
-        guest_identifier: guestIdentifier,
-      });
+      let latestQuota = usedQuota;
+      for (const item of capturedQueue) {
+        const presigned = await requestGuestPresignedUrl(slug, {
+          filename: item.file.name,
+          content_type: item.file.type || 'image/jpeg',
+          guest_identifier: guestIdentifier,
+        });
 
-      await uploadFileToPresignedUrl(presigned.upload_url, selectedFile);
+        await uploadFileToPresignedUrl(presigned.upload_url, item.file);
 
-      await confirmGuestPhotoUpload(slug, {
-        file_key: presigned.file_key,
-        guest_identifier: guestIdentifier,
-        guest_name: guestNameInput.trim() || undefined,
-      });
+        await confirmGuestPhotoUpload(slug, {
+          file_key: presigned.file_key,
+          guest_identifier: guestIdentifier,
+          guest_name: guestNameInput.trim() || undefined,
+        });
 
-      const nextCount = incrementLocalGuestUploadCount(slug);
-      setUsedQuota(nextCount);
+        latestQuota = incrementLocalGuestUploadCount(slug);
+      }
+
+      setUsedQuota(latestQuota);
       closeUploadModal();
       setActiveTab('guest');
       showToast(
-        'Foto terkirim! Terima kasih sudah berbagi momen ✨',
+        `${totalSent} foto terkirim! Terima kasih sudah berbagi momen ✨`,
         'success',
       );
     } catch (err) {
@@ -1181,10 +1244,10 @@ export default function GuestGalleryClient({ slug }: GuestGalleryClientProps) {
         </div>
       )}
 
-      {/* 6. Dialog Unggah Momen Tamu: Isi Nama Dulu -> Kamera Live -> Pratinjau & Kirim */}
+      {/* 6. Dialog Unggah Momen Tamu: Isi Nama Dulu -> Kamera Live Beruntun (Continuous Shot) -> Kirim Semua */}
       {isUploadModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
-          {!isCameraActive && (!selectedFile || !previewUrl) ? (
+          {!isCameraActive ? (
             /* LANGKAH 1: ISI NAMA DULU SEBELUM MEMBUKA KAMERA */
             <div className="w-full max-w-md bg-neutral-900 border border-white/15 rounded-t-3xl sm:rounded-3xl p-5 space-y-4 shadow-2xl">
               <div className="flex items-center justify-between">
@@ -1193,7 +1256,7 @@ export default function GuestGalleryClient({ slug }: GuestGalleryClientProps) {
                     className="text-[11px] font-bold uppercase tracking-wider"
                     style={{ color: themeColor }}
                   >
-                    Langkah 1 dari 3
+                    Langkah 1 dari 2
                   </span>
                   <h3 className="text-base font-extrabold text-white">
                     Siapa Nama Anda?
@@ -1251,31 +1314,47 @@ export default function GuestGalleryClient({ slug }: GuestGalleryClientProps) {
                 </button>
               </div>
             </div>
-          ) : isCameraActive && (!selectedFile || !previewUrl) ? (
-            /* LANGKAH 2: KAMERA LIVE LANGSUNG DI DALAM WEB APP */
-            <div className="w-full max-w-md bg-neutral-900 border border-white/15 rounded-t-3xl sm:rounded-3xl p-5 space-y-4 shadow-2xl">
-              <div className="flex items-center justify-between">
-                <div>
+          ) : (
+            /* LANGKAH 2: KAMERA LIVE BERUNTUN — JEPRET TERUS SAMPAI KUOTA PENUH ATAU KLIK KIRIM */
+            <form
+              onSubmit={handleConfirmUpload}
+              className="w-full max-w-md bg-neutral-900 border border-white/15 rounded-t-3xl sm:rounded-3xl p-4 sm:p-5 space-y-3.5 shadow-2xl max-h-[94vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
                   <span
-                    className="text-[11px] font-bold uppercase tracking-wider"
+                    className="text-[11px] font-bold uppercase tracking-wider block truncate"
                     style={{ color: themeColor }}
                   >
-                    Langkah 2 dari 3 • 📸 {guestNameInput.trim()}
+                    📸 {guestNameInput.trim()} • Sesi Kamera Live
                   </span>
                   <h3 className="text-base font-extrabold text-white">
-                    Ambil Foto Momen Anda
+                    Jepret Terus &amp; Kirim Sekaligus
                   </h3>
                 </div>
-                <button
-                  type="button"
-                  onClick={closeUploadModal}
-                  className="p-1.5 rounded-full text-neutral-400 hover:text-white"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span
+                    className={`px-2.5 py-1 rounded-full text-[11px] font-extrabold border ${
+                      capturedQueue.length >= remainingQuota
+                        ? 'bg-amber-500/20 text-amber-300 border-amber-400/40'
+                        : 'bg-white/10 text-white border-white/15'
+                    }`}
+                  >
+                    {capturedQueue.length}/{remainingQuota} Foto
+                  </span>
+                  <button
+                    type="button"
+                    onClick={closeUploadModal}
+                    disabled={uploading}
+                    className="p-1.5 rounded-full text-neutral-400 hover:text-white disabled:opacity-40"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
 
-              <div className="relative rounded-2xl overflow-hidden bg-black aspect-[3/4] sm:aspect-[4/3] flex items-center justify-center border border-white/15">
+              {/* Viewfinder Kamera Live */}
+              <div className="relative rounded-2xl overflow-hidden bg-black aspect-[4/3] flex items-center justify-center border border-white/15">
                 {cameraError ? (
                   <div className="p-6 text-center space-y-3">
                     <p className="text-xs text-amber-300 font-medium leading-relaxed">
@@ -1293,7 +1372,7 @@ export default function GuestGalleryClient({ slug }: GuestGalleryClientProps) {
                       </button>
                       <button
                         type="button"
-                        onClick={() => cameraInputRef.current?.click()}
+                        onClick={() => fileInputRef.current?.click()}
                         className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-white/15"
                       >
                         Pilih File Foto
@@ -1311,9 +1390,27 @@ export default function GuestGalleryClient({ slug }: GuestGalleryClientProps) {
                         cameraFacingMode === 'user' ? '-scale-x-100' : ''
                       }`}
                     />
+
+                    {/* Efek Flash Putih Saat Jepret */}
+                    {shutterFlash && (
+                      <div className="
+                        absolute inset-0 bg-white/80 pointer-events-none transition-opacity duration-150
+                      " />
+                    )}
+
+                    {/* Badge Info Kuota Penuh di Atas Kamera */}
+                    {capturedQueue.length >= remainingQuota && (
+                      <div className="absolute inset-x-3 bottom-3 px-3.5 py-2 rounded-xl bg-black/80 backdrop-blur-md border border-amber-400/40 text-center">
+                        <p className="text-xs font-bold text-amber-300">
+                          Batas kuota ({remainingQuota} foto) tercapai. Klik Kirim di bawah atau hapus salah satu foto untuk jepret ulang.
+                        </p>
+                      </div>
+                    )}
+
                     <button
                       type="button"
                       onClick={handleFlipCamera}
+                      disabled={uploading}
                       className="absolute top-3 right-3 px-3 py-1.5 rounded-full bg-black/65 hover:bg-black/85 backdrop-blur-md border border-white/20 text-xs font-bold text-white flex items-center gap-1.5"
                     >
                       <RefreshCw className="w-3.5 h-3.5" />
@@ -1323,99 +1420,96 @@ export default function GuestGalleryClient({ slug }: GuestGalleryClientProps) {
                 )}
               </div>
 
-              <div className="flex items-center justify-between gap-3 pt-1">
+              {/* Tray / Filmstrip Hasil Jepretan Beruntun */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-[11px] text-neutral-400">
+                  <span>
+                    {capturedQueue.length === 0
+                      ? 'Belum ada foto dijepret — tekan tombol Jepret di bawah'
+                      : `Daftar jepretan siap kirim (${capturedQueue.length} foto)`}
+                  </span>
+                  {capturedQueue.length > 0 && (
+                    <span className="text-neutral-300 font-semibold">
+                      Sisa jatah: {Math.max(0, remainingQuota - capturedQueue.length)}
+                    </span>
+                  )}
+                </div>
+
+                {capturedQueue.length > 0 && (
+                  <div className="flex items-center gap-2.5 overflow-x-auto pb-1 pt-0.5">
+                    {capturedQueue.map((shot, idx) => (
+                      <div
+                        key={shot.id}
+                        className="relative w-16 h-16 sm:w-18 sm:h-18 rounded-xl overflow-hidden border border-white/20 bg-neutral-950 shrink-0 group"
+                      >
+                        <img
+                          src={shot.previewUrl}
+                          alt={`Jepretan ${idx + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                        <span className="absolute bottom-1 left-1 px-1.5 py-0.2 rounded bg-black/75 text-[9px] font-bold text-white">
+                          #{idx + 1}
+                        </span>
+                        <button
+                          type="button"
+                          disabled={uploading}
+                          onClick={() => handleRemoveCapturedShot(shot.id)}
+                          aria-label={`Hapus foto ${idx + 1}`}
+                          className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/80 hover:bg-red-600 text-white flex items-center justify-center border border-white/20 transition"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Action Bar: Ubah Nama | Jepret Foto Terus | Kirim Sekaligus */}
+              <div className="flex items-center gap-2 pt-1">
                 <button
                   type="button"
+                  disabled={uploading}
                   onClick={stopLiveCamera}
-                  className="px-4 py-3 rounded-xl text-xs font-bold bg-neutral-800 hover:bg-neutral-700 text-neutral-200"
+                  className="px-3 py-3.5 rounded-xl text-xs font-bold bg-neutral-800 hover:bg-neutral-700 text-neutral-200 disabled:opacity-40 shrink-0"
                 >
-                  &larr; Ubah Nama
+                  &larr; Nama
                 </button>
 
                 {!cameraError && (
                   <button
                     type="button"
+                    disabled={uploading || capturedQueue.length >= remainingQuota}
                     onClick={handleCapturePhotoFromStream}
-                    className="flex-1 py-3.5 px-5 rounded-xl text-xs sm:text-sm font-extrabold text-neutral-950 flex items-center justify-center gap-2 shadow-xl active:scale-95 transition"
-                    style={{ backgroundColor: themeColor }}
+                    className={`flex-1 py-3.5 px-4 rounded-xl text-xs sm:text-sm font-extrabold flex items-center justify-center gap-1.5 shadow-lg active:scale-95 transition ${
+                      capturedQueue.length >= remainingQuota
+                        ? 'bg-neutral-800 text-neutral-500 border border-white/10 cursor-not-allowed'
+                        : capturedQueue.length > 0
+                        ? 'bg-white text-neutral-950 hover:bg-neutral-200'
+                        : 'text-neutral-950'
+                    }`}
+                    style={
+                      capturedQueue.length === 0 &&
+                      capturedQueue.length < remainingQuota
+                        ? { backgroundColor: themeColor }
+                        : undefined
+                    }
                   >
                     <Camera className="w-4 h-4 stroke-[2.5]" />
-                    <span>Jepret Foto</span>
+                    <span>
+                      {capturedQueue.length >= remainingQuota
+                        ? 'Kuota Penuh'
+                        : capturedQueue.length > 0
+                        ? 'Jepret Lagi'
+                        : 'Jepret Foto'}
+                    </span>
                   </button>
                 )}
-              </div>
-            </div>
-          ) : (
-            /* LANGKAH 3: PRATINJAU FOTO & KIRIM KE LAYAR */
-            <form
-              onSubmit={handleConfirmUpload}
-              className="w-full max-w-md bg-neutral-900 border border-white/15 rounded-t-3xl sm:rounded-3xl p-5 space-y-4 shadow-2xl"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <span
-                    className="text-[11px] font-bold uppercase tracking-wider"
-                    style={{ color: themeColor }}
-                  >
-                    Langkah 3 dari 3
-                  </span>
-                  <h3 className="text-base font-extrabold text-white">
-                    Bagikan Momen ke Galeri
-                  </h3>
-                </div>
-                <button
-                  type="button"
-                  onClick={closeUploadModal}
-                  disabled={uploading}
-                  className="p-1.5 rounded-full text-neutral-400 hover:text-white"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
 
-              <div className="relative rounded-2xl overflow-hidden bg-black aspect-[4/3] flex items-center justify-center border border-white/10">
-                <img
-                  src={previewUrl!}
-                  alt="Pratinjau unggahan"
-                  className="max-h-full max-w-full object-contain"
-                />
-                <div className="absolute bottom-2.5 left-2.5 right-2.5 flex items-center justify-between">
-                  <span className="px-3 py-1 rounded-full bg-black/70 backdrop-blur-md border border-white/15 text-xs font-semibold text-white truncate">
-                    📸 {guestNameInput.trim()}
-                  </span>
-                  <button
-                    type="button"
-                    disabled={uploading}
-                    onClick={() => {
-                      if (previewUrl) URL.revokeObjectURL(previewUrl);
-                      setSelectedFile(null);
-                      setPreviewUrl(null);
-                      void startLiveCamera();
-                    }}
-                    className="px-2.5 py-1 rounded-full bg-black/75 hover:bg-black text-[11px] font-bold text-amber-300 border border-white/15"
-                  >
-                    Foto Ulang
-                  </button>
-                </div>
-              </div>
-
-              <p className="text-xs text-neutral-200 font-semibold text-center">
-                Kirim momen ini? (Sisa kuota: {remainingQuota}/{uploadLimit})
-              </p>
-
-              <div className="flex gap-2.5 pt-1">
-                <button
-                  type="button"
-                  onClick={closeUploadModal}
-                  disabled={uploading}
-                  className="flex-1 py-3 rounded-xl text-xs font-bold bg-neutral-800 hover:bg-neutral-700 text-neutral-200"
-                >
-                  Batal
-                </button>
                 <button
                   type="submit"
-                  disabled={uploading}
-                  className="flex-1 py-3 rounded-xl text-xs font-extrabold text-neutral-950 flex items-center justify-center gap-2 shadow-lg"
+                  disabled={uploading || capturedQueue.length === 0}
+                  className="flex-1 py-3.5 px-4 rounded-xl text-xs sm:text-sm font-extrabold text-neutral-950 flex items-center justify-center gap-1.5 shadow-xl disabled:opacity-35 active:scale-95 transition"
                   style={{ backgroundColor: themeColor }}
                 >
                   {uploading ? (
@@ -1424,7 +1518,12 @@ export default function GuestGalleryClient({ slug }: GuestGalleryClientProps) {
                       <span>Mengirim...</span>
                     </>
                   ) : (
-                    <span>Kirim</span>
+                    <>
+                      <CheckCircle2 className="w-4 h-4 stroke-[2.5]" />
+                      <span>
+                        Kirim{capturedQueue.length > 0 ? ` (${capturedQueue.length})` : ''}
+                      </span>
+                    </>
                   )}
                 </button>
               </div>
