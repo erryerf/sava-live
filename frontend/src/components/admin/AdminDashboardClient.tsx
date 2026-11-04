@@ -11,7 +11,10 @@ import {
   AdminUsersSection,
   getStoredOperatorAccounts,
 } from './AdminUsersAndSettings';
-import { getStoredDemoEvents } from './demo-data';
+import {
+  getStoredDemoEvents,
+  saveStoredDemoEvents,
+} from './demo-data';
 import EventControlRoom from './EventControlRoom';
 import EventListSection from './EventListSection';
 import {
@@ -102,9 +105,21 @@ export default function AdminDashboardClient() {
   const loadEvents = useCallback(async () => {
     setLoading(true);
     try {
+      const localStored = getStoredDemoEvents();
+      if (localStored.length > 0) {
+        await fetch('/v1/admin/events/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ events: localStored }),
+        }).catch(() => {});
+      }
+
       const list = await fetchAdminEvents(
         statusFilter === 'all' ? undefined : statusFilter,
       );
+      if (statusFilter === 'all') {
+        saveStoredDemoEvents(list);
+      }
       setEvents(list);
       setIsDemoMode(false);
     } catch {

@@ -7,8 +7,7 @@ import {
   PublicEvent,
 } from './types';
 
-export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/v1';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/v1';
 
 export async function fetchPublicEvent(
   slug: string,
@@ -171,6 +170,10 @@ export interface LocalEventCustomization {
   header_subtitle?: string | null;
   theme_color?: string;
   header_image_url?: string | null;
+  guest_upload_limit?: number;
+  status?: PublicEvent['status'];
+  is_upload_allowed?: boolean;
+  require_guest_moderation?: boolean;
 }
 
 export function getLocalEventCustomization(
@@ -178,9 +181,54 @@ export function getLocalEventCustomization(
 ): LocalEventCustomization | null {
   if (typeof window === 'undefined') return null;
   try {
-    const raw = window.localStorage.getItem(`sava_event_custom_${slug}`);
-    if (!raw) return null;
-    return JSON.parse(raw) as LocalEventCustomization;
+    const customRaw = window.localStorage.getItem(`sava_event_custom_${slug}`);
+    const customParsed = customRaw
+      ? (JSON.parse(customRaw) as LocalEventCustomization)
+      : null;
+
+    const demoListRaw = window.localStorage.getItem('sava_demo_admin_events');
+    let fromDemoList: LocalEventCustomization | null = null;
+    if (demoListRaw) {
+      const demoList = JSON.parse(demoListRaw) as Array<{
+        slug?: string;
+        name?: string;
+        header_subtitle?: string | null;
+        theme_color?: string;
+        header_image_url?: string | null;
+        guest_upload_limit?: number;
+        status?: PublicEvent['status'];
+        is_upload_allowed?: boolean;
+        require_guest_moderation?: boolean;
+      }>;
+      const matched = demoList.find(
+        (item) => item.slug?.toLowerCase() === slug.toLowerCase(),
+      );
+      if (matched) {
+        fromDemoList = {
+          name: matched.name,
+          header_subtitle: matched.header_subtitle,
+          theme_color: matched.theme_color,
+          header_image_url: matched.header_image_url,
+          guest_upload_limit:
+            typeof matched.guest_upload_limit === 'number'
+              ? matched.guest_upload_limit
+              : undefined,
+          status: matched.status,
+          is_upload_allowed: matched.is_upload_allowed,
+          require_guest_moderation: matched.require_guest_moderation,
+        };
+      }
+    }
+
+    if (!customParsed && !fromDemoList) return null;
+    return {
+      ...fromDemoList,
+      ...customParsed,
+      guest_upload_limit:
+        typeof customParsed?.guest_upload_limit === 'number'
+          ? customParsed.guest_upload_limit
+          : fromDemoList?.guest_upload_limit,
+    };
   } catch {
     return null;
   }

@@ -13,6 +13,7 @@ import {
   getOrCreateGuestIdentifier,
   incrementLocalGuestUploadCount,
   requestGuestPresignedUrl,
+  saveLocalEventCustomization,
   subscribeLocalLiveEvents,
   uploadFileToPresignedUrl,
 } from '@/lib/api';
@@ -83,12 +84,38 @@ export function useGuestGalleryData(slug: string) {
 
     async function loadInitial() {
       setLoading(true);
+
+      let urlLimit: number | undefined;
+      if (typeof window !== 'undefined') {
+        const sp = new URLSearchParams(window.location.search);
+        const rawLimit = sp.get('limit');
+        if (rawLimit) {
+          const parsedLimit = parseInt(rawLimit, 10);
+          if (!Number.isNaN(parsedLimit) && parsedLimit > 0) {
+            urlLimit = parsedLimit;
+            saveLocalEventCustomization(slug, {
+              guest_upload_limit: parsedLimit,
+            });
+          }
+        }
+      }
+
       const fetchedEvent = await fetchPublicEvent(slug);
       if (!mounted) return;
 
+      const localCustom = getLocalEventCustomization(slug);
+      const resolvedLimit =
+        urlLimit ??
+        (typeof localCustom?.guest_upload_limit === 'number' &&
+        localCustom.guest_upload_limit > 0
+          ? localCustom.guest_upload_limit
+          : undefined) ??
+        fetchedEvent?.guest_upload_limit ??
+        5;
+
       if (!fetchedEvent) {
-        const localCustom = getLocalEventCustomization(slug);
         setIsDemoMode(true);
+        const resolvedStatus = localCustom?.status || 'active';
         setEvent({
           id: 'demo-event-id',
           name: localCustom?.name || formatDemoEventTitle(slug),
@@ -97,14 +124,14 @@ export function useGuestGalleryData(slug: string) {
               ? localCustom.header_subtitle
               : 'The Wedding of',
           slug,
-          status: 'active',
+          status: resolvedStatus,
           theme_color: localCustom?.theme_color || '#D4AF37',
           header_image_url:
             localCustom?.header_image_url !== undefined
               ? localCustom.header_image_url
               : DEFAULT_DEMO_HEADER_PHOTO,
-          guest_upload_limit: 5,
-          is_upload_allowed: true,
+          guest_upload_limit: resolvedLimit,
+          is_upload_allowed: resolvedStatus === 'active',
         });
         const localPhotos = getLocalEventPhotos(slug);
         setPhotosByTab({
@@ -121,7 +148,6 @@ export function useGuestGalleryData(slug: string) {
         return;
       }
 
-      const localCustom = getLocalEventCustomization(slug);
       setEvent({
         ...fetchedEvent,
         name: localCustom?.name || fetchedEvent.name,
@@ -129,10 +155,12 @@ export function useGuestGalleryData(slug: string) {
           localCustom?.header_subtitle !== undefined
             ? localCustom.header_subtitle
             : (fetchedEvent.header_subtitle ?? 'The Wedding of'),
+        theme_color: localCustom?.theme_color || fetchedEvent.theme_color,
         header_image_url:
           fetchedEvent.header_image_url ||
           localCustom?.header_image_url ||
           null,
+        guest_upload_limit: resolvedLimit,
       });
 
       const [mainRes, guestRes] = await Promise.all([
@@ -420,3 +448,4 @@ export function useGuestGalleryData(slug: string) {
     uploadGuestQueue,
   };
 }
+

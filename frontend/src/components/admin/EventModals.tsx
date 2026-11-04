@@ -157,13 +157,20 @@ export function CreateEventWizardModal({
           header_subtitle: formData.header_subtitle,
           theme_color: formData.theme_color,
           header_image_url: headerPreviewDataUrl || null,
+          guest_upload_limit: Number(formData.guest_upload_limit),
+          status: 'active',
+          is_upload_allowed: true,
+          require_guest_moderation: formData.require_guest_moderation,
         });
-        const updatedList = [demoCreated, ...getStoredDemoEvents()];
+        const updatedList = [
+          demoCreated,
+          ...getStoredDemoEvents().filter((item) => item.slug !== slug),
+        ];
         saveStoredDemoEvents(updatedList);
         await onReloadEvents();
         setCreatedEventResult(demoCreated);
         setWizardStep(3);
-        showToast('Event berhasil dibuat! 🎉');
+        showToast('Acara berhasil dibuat.');
         return;
       }
 
@@ -179,11 +186,16 @@ export function CreateEventWizardModal({
         status: 'active',
       });
 
-      if (headerPreviewDataUrl) {
-        saveLocalEventCustomization(created.slug, {
-          header_image_url: headerPreviewDataUrl,
-        });
-      }
+      saveLocalEventCustomization(created.slug, {
+        name: created.name,
+        header_subtitle: created.header_subtitle ?? formData.header_subtitle,
+        theme_color: created.theme_color,
+        header_image_url: headerPreviewDataUrl || created.header_image_url || null,
+        guest_upload_limit: Number(formData.guest_upload_limit),
+        status: created.status,
+        is_upload_allowed: created.is_upload_allowed,
+        require_guest_moderation: formData.require_guest_moderation,
+      });
 
       if (headerFile) {
         try {
@@ -206,10 +218,18 @@ export function CreateEventWizardModal({
         }
       }
 
+      const updatedStored = [
+        created,
+        ...getStoredDemoEvents().filter(
+          (item) => item.id !== created.id && item.slug !== created.slug,
+        ),
+      ];
+      saveStoredDemoEvents(updatedStored);
+
       setCreatedEventResult(created);
       setWizardStep(3);
       await onReloadEvents();
-      showToast('Event & kredensial FTP siap! 🚀');
+      showToast('Acara dan kredensial FTP siap.');
     } catch (err) {
       showToast((err as Error).message || 'Gagal membuat event.');
     } finally {
@@ -522,7 +542,7 @@ export function CreateEventWizardModal({
             <div className="flex flex-col items-center p-4 rounded-md bg-[#0B0B0A] border border-white/[0.08] space-y-2.5">
               <div ref={qrCanvasRef} className="p-3 bg-white rounded">
                 <QRCodeCanvas
-                  value={`${originUrl.replace(/\/+$/, '')}/${createdEventResult.slug}`}
+                  value={`${originUrl.replace(/\/+$/, '')}/${createdEventResult.slug}?limit=${createdEventResult.guest_upload_limit}`}
                   size={140}
                   level="H"
                 />
@@ -614,7 +634,10 @@ export function EditEventModal({
       end_time: toLocalInput(editingEvent.end_time),
       theme_color:
         localCustom?.theme_color || editingEvent.theme_color || '#D4AF37',
-      guest_upload_limit: editingEvent.guest_upload_limit ?? 5,
+      guest_upload_limit:
+        typeof localCustom?.guest_upload_limit === 'number'
+          ? localCustom.guest_upload_limit
+          : (editingEvent.guest_upload_limit ?? 5),
       require_guest_moderation: Boolean(editingEvent.require_guest_moderation),
     });
   }, [editingEvent]);
@@ -639,6 +662,10 @@ export function EditEventModal({
         header_subtitle: editFormData.header_subtitle.trim(),
         theme_color: editFormData.theme_color,
         header_image_url: editModalHeaderPreview,
+        guest_upload_limit: Number(editFormData.guest_upload_limit),
+        status: editFormData.status,
+        is_upload_allowed: editFormData.status === 'active',
+        require_guest_moderation: editFormData.require_guest_moderation,
       });
 
       if (isDemoMode) {
@@ -701,10 +728,17 @@ export function EditEventModal({
         }
       }
 
+      const allDemo = getStoredDemoEvents().map((item) =>
+        item.id === editingEvent.id || item.slug === editingEvent.slug
+          ? updated
+          : item,
+      );
+      saveStoredDemoEvents(allDemo);
+
       onEventSaved(updated);
       await onReloadEvents();
       onClose();
-      showToast('Event berhasil diperbarui! ✨');
+      showToast('Perubahan acara berhasil disimpan.');
     } catch (err) {
       showToast((err as Error).message || 'Gagal memperbarui event.');
     } finally {

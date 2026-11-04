@@ -126,6 +126,10 @@ export function getStoredDemoEvents(): AdminEvent[] {
           custom?.header_image_url !== undefined
             ? custom.header_image_url
             : evt.header_image_url,
+        guest_upload_limit:
+          typeof custom?.guest_upload_limit === 'number'
+            ? custom.guest_upload_limit
+            : evt.guest_upload_limit,
       };
     });
   } catch {

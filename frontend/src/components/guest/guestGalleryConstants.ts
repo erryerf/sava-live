@@ -102,3 +102,4 @@ export function cleanCoupleHeadline(rawName: string): string {
     .trim()
     .replace(/^(pernikahan|the wedding of|resepsi|engagement of)\s+/i, '');
 }
+

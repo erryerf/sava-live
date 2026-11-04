@@ -590,7 +590,7 @@ export default function EventControlRoom({
             <span>Hapus</span>
           </button>
           <Link
-            href={`/${selectedEvent.slug}`}
+            href={`/${selectedEvent.slug}?limit=${selectedEvent.guest_upload_limit}`}
             target="_blank"
             className="px-3 py-1.5 rounded-md text-xs font-medium bg-[#141413] hover:bg-[#1E1E1C] border border-white/[0.08] flex items-center gap-1.5 text-neutral-200 transition-colors"
           >
@@ -927,7 +927,7 @@ export default function EventControlRoom({
               className="p-3 bg-white rounded-md"
             >
               <QRCodeCanvas
-                value={`${originUrl.replace(/\/+$/, '')}/${selectedEvent.slug}`}
+                value={`${originUrl.replace(/\/+$/, '')}/${selectedEvent.slug}?limit=${selectedEvent.guest_upload_limit}`}
                 size={148}
                 level="H"
               />
