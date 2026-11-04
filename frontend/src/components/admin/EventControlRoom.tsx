@@ -543,31 +543,31 @@ export default function EventControlRoom({
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       {/* Control Room Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-5 border-b border-white/10">
+      <div className="flex flex-wrap items-end justify-between gap-4 pb-5 border-b border-white/[0.07]">
         <div className="space-y-1">
           <button
             type="button"
             onClick={onBack}
-            className="text-xs text-neutral-400 hover:text-white mb-1 inline-block"
+            className="text-xs text-neutral-400 hover:text-white mb-1 inline-block transition-colors"
           >
-            &larr; Kembali ke Daftar Event
+            &larr; Daftar Acara
           </button>
           <div className="flex items-center gap-3">
             <span
-              className="w-3.5 h-3.5 rounded-full"
+              className="w-2.5 h-2.5 rounded-full"
               style={{ backgroundColor: selectedEvent.theme_color }}
             />
-            <h1 className="text-2xl font-extrabold text-white">
+            <h1 className="text-2xl font-semibold tracking-tight text-[#F5F4F0]">
               {selectedEvent.name}
             </h1>
             <span
-              className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
+              className={`px-2 py-0.5 rounded text-[11px] font-medium ${
                 selectedEvent.status === 'active'
-                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                  : 'bg-neutral-800 text-neutral-300 border border-white/10'
+                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                  : 'bg-white/[0.05] text-neutral-400 border border-white/[0.08]'
               }`}
             >
-              {selectedEvent.status === 'active' ? '● LIVE' : 'ARCHIVED'}
+              {selectedEvent.status === 'active' ? 'Berlangsung' : 'Selesai'}
             </span>
           </div>
         </div>
@@ -576,34 +576,34 @@ export default function EventControlRoom({
           <button
             type="button"
             onClick={() => onOpenEditModal(selectedEvent)}
-            className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-neutral-900 hover:bg-neutral-800 border border-white/10 flex items-center gap-1.5 text-neutral-200"
+            className="px-3 py-1.5 rounded-md text-xs font-medium bg-[#141413] hover:bg-[#1E1E1C] border border-white/[0.08] flex items-center gap-1.5 text-neutral-200 transition-colors"
           >
-            <Pencil className="w-3.5 h-3.5 text-amber-400" />
-            <span>Edit Event</span>
+            <Pencil className="w-3.5 h-3.5 text-neutral-400" />
+            <span>Pengaturan</span>
           </button>
           <button
             type="button"
             onClick={() => onOpenDeleteModal(selectedEvent)}
-            className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-rose-950/60 hover:bg-rose-900/70 border border-rose-500/30 flex items-center gap-1.5 text-rose-200"
+            className="px-3 py-1.5 rounded-md text-xs font-medium bg-[#141413] hover:bg-rose-950/60 border border-white/[0.08] flex items-center gap-1.5 text-neutral-400 hover:text-rose-200 transition-colors"
           >
             <Trash2 className="w-3.5 h-3.5" />
-            <span>Hapus Event</span>
+            <span>Hapus</span>
           </button>
           <Link
             href={`/${selectedEvent.slug}`}
             target="_blank"
-            className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-neutral-900 hover:bg-neutral-800 border border-white/10 flex items-center gap-1.5"
+            className="px-3 py-1.5 rounded-md text-xs font-medium bg-[#141413] hover:bg-[#1E1E1C] border border-white/[0.08] flex items-center gap-1.5 text-neutral-200 transition-colors"
           >
             <span>Galeri Tamu</span>
-            <ExternalLink className="w-3.5 h-3.5" />
+            <ExternalLink className="w-3 h-3 text-neutral-500" />
           </Link>
           <Link
             href={`/live/${selectedEvent.slug}`}
             target="_blank"
-            className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-neutral-900 hover:bg-neutral-800 border border-white/10 flex items-center gap-1.5"
+            className="px-3 py-1.5 rounded-md text-xs font-medium bg-[#F5F4F0] hover:bg-white text-[#0E0E0D] flex items-center gap-1.5 transition-colors"
           >
             <span>Buka Live Wall</span>
-            <ExternalLink className="w-3.5 h-3.5" />
+            <ExternalLink className="w-3 h-3" />
           </Link>
         </div>
       </div>
@@ -613,40 +613,40 @@ export default function EventControlRoom({
         {/* LEFT COLUMN (4 cols): FTP Status, Header Settings, QR Code, End Event */}
         <div className="lg:col-span-4 space-y-5">
           {/* 1. Kamera Utama Fotografer: Auto-Upload Saat Memotret (Wi-Fi FTP / Kabel USB) */}
-          <div className="p-5 rounded-2xl bg-neutral-900 border border-white/10 space-y-3.5">
+          <div className="p-5 rounded-lg bg-[#121211] border border-white/[0.07] space-y-3.5">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-neutral-400">
-                Auto-Upload Kamera Utama
+              <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-400">
+                Transmisi Kamera Utama
               </span>
               {bridgeStatus?.online ? (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                  <Wifi className="w-3.5 h-3.5" />
-                  Server Siap (Port {bridgeStatus.ftp_port})
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  <Wifi className="w-3 h-3" />
+                  Port {bridgeStatus.ftp_port}
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-300">
-                  <Camera className="w-3.5 h-3.5" />
-                  Siap Tayang
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-white/[0.05] text-neutral-300">
+                  <Camera className="w-3 h-3" />
+                  Siaga
                 </span>
               )}
             </div>
 
             {/* Panel Auto-Upload Saat Fotografer Memotret */}
-            <div className="p-3.5 rounded-xl bg-neutral-950 border border-emerald-500/25 space-y-2.5 text-xs">
-              <div className="font-bold text-emerald-300 flex items-center justify-between">
-                <span>1. Via Wi-Fi Kamera (Auto FTP Transfer)</span>
-                <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-200">
-                  Otomatis Saat Jepret
+            <div className="p-3.5 rounded-md bg-[#0B0B0A] border border-white/[0.07] space-y-2.5 text-xs">
+              <div className="font-medium text-[#F5F4F0] flex items-center justify-between">
+                <span>1. Wi-Fi Kamera (FTP Transfer)</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/[0.06] text-neutral-300">
+                  Otomatis
                 </span>
               </div>
               <p className="text-[11px] text-neutral-400 leading-relaxed">
-                Masukkan 4 data ini sekali saja di menu{' '}
+                Masukkan konfigurasi berikut pada menu{' '}
                 <strong className="text-neutral-200">FTP Transfer</strong>{' '}
-                kamera (Sony / Canon / Nikon / Lumix):
+                kamera:
               </p>
-              <div className="space-y-1.5 font-mono text-[11px] pt-1 border-t border-white/10">
+              <div className="space-y-1.5 font-mono text-[11px] pt-2 border-t border-white/[0.06]">
                 <div className="flex justify-between items-center">
-                  <span className="text-neutral-500">Host / IP Server:</span>
+                  <span className="text-neutral-500">Host / IP:</span>
                   <button
                     type="button"
                     onClick={() =>
@@ -655,15 +655,15 @@ export default function EventControlRoom({
                         'IP Server FTP',
                       )
                     }
-                    className="text-amber-300 font-bold hover:underline flex items-center gap-1"
+                    className="text-neutral-200 hover:text-white flex items-center gap-1"
                   >
                     <span>{bridgeStatus?.local_ip || '127.0.0.1'}</span>
-                    <Copy className="w-3 h-3" />
+                    <Copy className="w-3 h-3 text-neutral-500" />
                   </button>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-neutral-500">Port:</span>
-                  <span className="text-white font-bold">
+                  <span className="text-neutral-200">
                     {bridgeStatus?.ftp_port || 2121}
                   </span>
                 </div>
@@ -674,10 +674,10 @@ export default function EventControlRoom({
                     onClick={() =>
                       copyText(selectedEvent.slug, 'Username FTP')
                     }
-                    className="text-amber-300 font-bold hover:underline flex items-center gap-1"
+                    className="text-neutral-200 hover:text-white flex items-center gap-1"
                   >
                     <span>{selectedEvent.slug}</span>
-                    <Copy className="w-3 h-3" />
+                    <Copy className="w-3 h-3 text-neutral-500" />
                   </button>
                 </div>
                 <div className="flex justify-between items-center">
@@ -690,10 +690,10 @@ export default function EventControlRoom({
                         'Password FTP',
                       )
                     }
-                    className="text-emerald-300 font-bold hover:underline flex items-center gap-1"
+                    className="text-neutral-200 hover:text-white flex items-center gap-1"
                   >
                     <span>{generatedFtpPassword || '123456'}</span>
-                    <Copy className="w-3 h-3" />
+                    <Copy className="w-3 h-3 text-neutral-500" />
                   </button>
                 </div>
               </div>
@@ -701,23 +701,22 @@ export default function EventControlRoom({
 
             {/* Opsi 2: Kabel USB Kamera (Hot-Folder Otomatis) */}
             {bridgeStatus?.hot_folder && (
-              <div className="p-3.5 rounded-xl bg-neutral-950 border border-white/10 space-y-2 text-xs">
-                <div className="font-bold text-amber-300">
-                  2. Via Kabel USB Kamera (Tanpa Setting Wi-Fi)
+              <div className="p-3.5 rounded-md bg-[#0B0B0A] border border-white/[0.07] space-y-2 text-xs">
+                <div className="font-medium text-neutral-200">
+                  2. Kabel USB Kamera (Hot-Folder)
                 </div>
                 <p className="text-[11px] text-neutral-400 leading-relaxed">
-                  Colok kabel USB kamera ke laptop, lalu arahkan folder simpan
-                  aplikasi kamera (EOS Utility / Sony Remote) ke folder ini:
+                  Arahkan lokasi simpan EOS Utility / Sony Remote ke folder ini:
                 </p>
                 <button
                   type="button"
                   onClick={() =>
                     copyText(bridgeStatus.hot_folder, 'Lokasi Hot-Folder')
                   }
-                  className="w-full text-left p-2 rounded-lg bg-neutral-900 border border-white/10 font-mono text-[10px] text-neutral-200 hover:border-amber-400/50 flex items-center justify-between gap-2"
+                  className="w-full text-left p-2 rounded bg-[#141413] border border-white/[0.07] font-mono text-[10px] text-neutral-300 hover:border-white/20 flex items-center justify-between gap-2"
                 >
                   <span className="truncate">{bridgeStatus.hot_folder}</span>
-                  <Copy className="w-3.5 h-3.5 shrink-0 text-amber-400" />
+                  <Copy className="w-3.5 h-3.5 shrink-0 text-neutral-500" />
                 </button>
               </div>
             )}
@@ -735,35 +734,35 @@ export default function EventControlRoom({
                   );
                   if (res.ok) {
                     showToast(
-                      '📸 Jepret! Foto kamera fotografer otomatis masuk ke layar!',
+                      'Jepretan uji coba berhasil dikirim ke layar.',
                     );
                   } else {
                     showToast('Gagal menjalankan simulasi kamera.');
                   }
                 } catch {
-                  showToast('Server Bridge belum merespons.');
+                  showToast('Server Bridge lokal belum aktif.');
                 } finally {
                   setSimulatingShot(false);
                 }
               }}
-              className="w-full py-3 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-neutral-950 text-xs font-extrabold flex items-center justify-center gap-2 shadow-lg transition disabled:opacity-50"
+              className="w-full py-2.5 px-4 rounded-md bg-[#F5F4F0] hover:bg-white text-[#0E0E0D] text-xs font-medium flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
             >
-              <Camera className="w-4 h-4 stroke-[2.5]" />
+              <Camera className="w-3.5 h-3.5" />
               <span>
                 {simulatingShot
                   ? 'Mengirim Jepretan...'
-                  : '⚡ Tes Simulasi Jepret Kamera'}
+                  : 'Uji Kirim Bidikan Kamera'}
               </span>
             </button>
 
             {/* Cadangan: Upload Manual / Pilih Folder Lain */}
-            <div className="pt-1 border-t border-white/10">
+            <div className="pt-2 border-t border-white/[0.07]">
               <button
                 type="button"
                 onClick={() => setShowFtpAdvanced((prev) => !prev)}
-                className="w-full flex items-center justify-between text-[11px] font-semibold text-neutral-400 hover:text-white py-1"
+                className="w-full flex items-center justify-between text-[11px] font-medium text-neutral-400 hover:text-white py-1"
               >
-                <span>Opsi Cadangan: Upload File / Pilih Folder Lain</span>
+                <span>Unggah Manual dari Komputer</span>
                 {showFtpAdvanced ? (
                   <ChevronUp className="w-3.5 h-3.5" />
                 ) : (
@@ -773,12 +772,12 @@ export default function EventControlRoom({
 
               {showFtpAdvanced && (
                 <div className="mt-2 space-y-2">
-                  <label className="w-full py-2.5 px-3.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition">
-                    <Upload className="w-3.5 h-3.5 text-amber-400" />
+                  <label className="w-full py-2 px-3.5 rounded-md bg-[#1A1A18] hover:bg-[#242422] border border-white/[0.07] text-neutral-200 text-xs font-medium flex items-center justify-center gap-2 cursor-pointer transition-colors">
+                    <Upload className="w-3.5 h-3.5 text-neutral-400" />
                     <span>
                       {uploadingMainPhotos
                         ? 'Menayangkan Foto...'
-                        : 'Upload Foto Manual dari Laptop'}
+                        : 'Pilih File Foto Kamera'}
                     </span>
                     <input
                       type="file"
@@ -796,13 +795,13 @@ export default function EventControlRoom({
                   <button
                     type="button"
                     onClick={() => void handleToggleFolderSync()}
-                    className="w-full py-2 px-3 rounded-xl text-xs font-semibold bg-neutral-950 hover:bg-neutral-800 border border-white/10 text-neutral-300 flex items-center justify-center gap-1.5"
+                    className="w-full py-2 px-3 rounded-md text-xs font-medium bg-[#0B0B0A] hover:bg-[#181816] border border-white/[0.07] text-neutral-300 flex items-center justify-center gap-1.5 transition-colors"
                   >
-                    <FolderSync className="w-3.5 h-3.5 text-amber-400" />
+                    <FolderSync className="w-3.5 h-3.5 text-neutral-400" />
                     <span>
                       {watchedFolderName
-                        ? `Hentikan Pantau "${watchedFolderName}"`
-                        : 'Pilih Folder Lain di Laptop'}
+                        ? `Hentikan Sinkronisasi "${watchedFolderName}"`
+                        : 'Sinkronisasi Folder Komputer'}
                     </span>
                   </button>
                 </div>
@@ -811,19 +810,16 @@ export default function EventControlRoom({
           </div>
 
           {/* 2. Custom Header Photo & Editable Text Settings */}
-          <div className="p-5 rounded-2xl bg-neutral-900 border border-white/10 space-y-3.5">
+          <div className="p-5 rounded-lg bg-[#121211] border border-white/[0.07] space-y-3.5">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-neutral-400">
-                Teks &amp; Foto Header Tamu
-              </span>
-              <span className="text-[11px] text-amber-300 font-medium">
-                Otomatis Digelapkan
+              <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-400">
+                Sampul &amp; Judul Galeri
               </span>
             </div>
 
             {/* Live Darkened Header Preview */}
             <div
-              className="relative h-28 rounded-2xl overflow-hidden border border-white/15 flex flex-col items-center justify-center text-center px-3"
+              className="relative h-28 rounded-md overflow-hidden border border-white/[0.08] flex flex-col items-center justify-center text-center px-3"
               style={{
                 background: `linear-gradient(145deg, ${selectedEvent.theme_color} 0%, #14120E 100%)`,
               }}
@@ -852,46 +848,46 @@ export default function EventControlRoom({
             </div>
 
             {/* Editable Header Subtitle & Couple/Event Name */}
-            <div className="space-y-2 pt-1">
+            <div className="space-y-2.5 pt-1">
               <div>
-                <label className="block text-[11px] font-semibold text-neutral-400 mb-1">
-                  Teks Pembuka di Atas Nama (Editable)
+                <label className="block text-[11px] font-medium text-neutral-400 mb-1">
+                  Subjudul Pembuka
                 </label>
                 <input
                   type="text"
                   placeholder="Contoh: The Wedding of"
                   value={editHeaderSubtitle}
                   onChange={(e) => setEditHeaderSubtitle(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-neutral-950 border border-white/15 text-xs text-white"
+                  className="w-full px-3 py-2 rounded-md bg-[#0B0B0A] border border-white/[0.08] text-xs text-[#F5F4F0]"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-neutral-400 mb-1">
-                  Nama Pengantin / Judul Header
+                <label className="block text-[11px] font-medium text-neutral-400 mb-1">
+                  Nama Acara / Mempelai
                 </label>
                 <input
                   type="text"
                   placeholder="Contoh: Budi & Ani"
                   value={editEventName}
                   onChange={(e) => setEditEventName(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-neutral-950 border border-white/15 text-xs text-white"
+                  className="w-full px-3 py-2 rounded-md bg-[#0B0B0A] border border-white/[0.08] text-xs text-[#F5F4F0]"
                 />
               </div>
 
               <button
                 type="button"
                 onClick={handleSaveHeaderTexts}
-                className="w-full py-2 px-3 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-bold transition"
+                className="w-full py-2 px-3 rounded-md bg-[#1A1A18] hover:bg-[#242422] border border-white/[0.08] text-[#F5F4F0] text-xs font-medium transition-colors"
               >
-                Simpan Teks Header
+                Simpan Teks Sampul
               </button>
             </div>
 
             <div className="flex gap-2 pt-1">
-              <label className="flex-1 py-2.5 px-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-neutral-950 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition">
+              <label className="flex-1 py-2 px-3 rounded-md bg-[#F5F4F0] hover:bg-white text-[#0E0E0D] text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer transition-colors">
                 <Upload className="w-3.5 h-3.5" />
-                <span>Ganti Foto Header</span>
+                <span>Ubah Foto Sampul</span>
                 <input
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
@@ -913,10 +909,10 @@ export default function EventControlRoom({
                       ...selectedEvent,
                       header_image_url: null,
                     });
-                    showToast('Foto header dihapus.');
+                    showToast('Foto sampul dihapus.');
                   }}
-                  className="px-3 py-2.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-semibold"
-                  title="Hapus Foto Header"
+                  className="px-3 py-2 rounded-md bg-[#1A1A18] hover:bg-[#242422] border border-white/[0.08] text-neutral-300 text-xs font-medium"
+                  title="Hapus Foto Sampul"
                 >
                   Reset
                 </button>
@@ -925,14 +921,14 @@ export default function EventControlRoom({
           </div>
 
           {/* 3. Universal QR Code Card */}
-          <div className="p-5 rounded-2xl bg-neutral-900 border border-white/10 flex flex-col items-center text-center space-y-3">
+          <div className="p-5 rounded-lg bg-[#121211] border border-white/[0.07] flex flex-col items-center text-center space-y-3">
             <div
               ref={qrCanvasRef}
-              className="p-3.5 bg-white rounded-2xl shadow-lg"
+              className="p-3 bg-white rounded-md"
             >
               <QRCodeCanvas
                 value={`${originUrl.replace(/\/+$/, '')}/${selectedEvent.slug}`}
-                size={150}
+                size={148}
                 level="H"
               />
             </div>
@@ -942,20 +938,20 @@ export default function EventControlRoom({
             <button
               type="button"
               onClick={() => downloadQrCodePng(selectedEvent.slug)}
-              className="w-full py-2.5 px-4 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/15 text-white flex items-center justify-center gap-2"
+              className="w-full py-2 px-4 rounded-md text-xs font-medium bg-[#1A1A18] hover:bg-[#242422] border border-white/[0.08] text-[#F5F4F0] flex items-center justify-center gap-2 transition-colors"
             >
-              <QrCode className="w-4 h-4" />
+              <QrCode className="w-3.5 h-3.5 text-neutral-400" />
               <span>Unduh QR Code (.PNG)</span>
             </button>
           </div>
 
           {/* 4. End Event & Archive ZIP Generator */}
-          <div className="p-5 rounded-2xl bg-neutral-900 border border-white/10 space-y-3">
+          <div className="p-5 rounded-lg bg-[#121211] border border-white/[0.07] space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-neutral-400">
-                Serah Terima &amp; Arsip ZIP
+              <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-400">
+                Arsip Akhir (.ZIP)
               </span>
-              <span className="text-xs font-semibold text-amber-300 uppercase">
+              <span className="text-[11px] font-mono text-neutral-400 uppercase">
                 {selectedEvent.archive_status}
               </span>
             </div>
@@ -964,10 +960,10 @@ export default function EventControlRoom({
               <button
                 type="button"
                 onClick={handleEndEventAndGenerateZip}
-                className="w-full py-3 px-4 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white flex items-center justify-center gap-2 shadow-lg"
+                className="w-full py-2.5 px-4 rounded-md text-xs font-medium bg-rose-950/70 hover:bg-rose-900/80 border border-rose-500/30 text-rose-200 flex items-center justify-center gap-2 transition-colors"
               >
-                <Archive className="w-4 h-4" />
-                <span>Akhiri Event &amp; Generate ZIP</span>
+                <Archive className="w-3.5 h-3.5" />
+                <span>Akhiri Acara &amp; Buat ZIP</span>
               </button>
             ) : (
               <div className="space-y-2.5">
@@ -977,19 +973,19 @@ export default function EventControlRoom({
                     href={selectedEvent.archive_download_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="w-full py-3 px-4 rounded-xl text-xs font-bold bg-emerald-400 text-neutral-950 flex items-center justify-center gap-2"
+                    className="w-full py-2.5 px-4 rounded-md text-xs font-medium bg-[#F5F4F0] hover:bg-white text-[#0E0E0D] flex items-center justify-center gap-2 transition-colors"
                   >
-                    <Download className="w-4 h-4" />
-                    <span>Download Semua Foto (.ZIP)</span>
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Unduh Semua Foto (.ZIP)</span>
                   </a>
                 ) : (
                   <button
                     type="button"
                     onClick={() => triggerAdminArchive(selectedEvent.id)}
-                    className="w-full py-2.5 px-4 rounded-xl text-xs font-semibold bg-neutral-800 hover:bg-neutral-700 text-neutral-200 flex items-center justify-center gap-2"
+                    className="w-full py-2 px-4 rounded-md text-xs font-medium bg-[#1A1A18] hover:bg-[#242422] border border-white/[0.08] text-neutral-200 flex items-center justify-center gap-2 transition-colors"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
-                    <span>Generate Ulang Arsip ZIP</span>
+                    <span>Proses Ulang ZIP</span>
                   </button>
                 )}
               </div>
@@ -998,32 +994,32 @@ export default function EventControlRoom({
         </div>
 
         {/* RIGHT COLUMN (8 cols): Live Gallery & Moderation Queue */}
-        <div className="lg:col-span-8 p-5 rounded-2xl bg-neutral-900 border border-white/10 space-y-5">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4">
-            <div className="flex gap-2">
+        <div className="lg:col-span-8 p-5 rounded-lg bg-[#121211] border border-white/[0.07] space-y-5">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.07] pb-4">
+            <div className="inline-flex p-0.5 rounded-md bg-[#0B0B0A] border border-white/[0.07]">
               <button
                 type="button"
                 onClick={() => setControlTab('gallery')}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
+                className={`px-3.5 py-1.5 rounded text-xs transition-colors ${
                   controlTab === 'gallery'
-                    ? 'bg-amber-400 text-neutral-950'
-                    : 'bg-neutral-800 text-neutral-300 hover:text-white'
+                    ? 'bg-white/[0.1] text-[#F5F4F0] font-medium'
+                    : 'text-neutral-400 hover:text-neutral-200'
                 }`}
               >
-                Live Gallery ({approvedPhotos.length})
+                Galeri Tayang ({approvedPhotos.length})
               </button>
 
               <button
                 type="button"
                 onClick={() => setControlTab('moderation')}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                className={`px-3.5 py-1.5 rounded text-xs transition-colors flex items-center gap-1.5 ${
                   controlTab === 'moderation'
-                    ? 'bg-amber-400 text-neutral-950'
-                    : 'bg-neutral-800 text-neutral-300 hover:text-white'
+                    ? 'bg-white/[0.1] text-[#F5F4F0] font-medium'
+                    : 'text-neutral-400 hover:text-neutral-200'
                 }`}
               >
                 <ShieldAlert className="w-3.5 h-3.5" />
-                <span>Moderation Queue ({pendingPhotos.length})</span>
+                <span>Antrean Moderasi ({pendingPhotos.length})</span>
               </button>
             </div>
 
@@ -1033,11 +1029,11 @@ export default function EventControlRoom({
                 onChange={(e) =>
                   setGallerySourceFilter(e.target.value as 'all' | PhotoSource)
                 }
-                className="px-3 py-2 rounded-xl bg-neutral-950 border border-white/15 text-xs text-white"
+                className="px-3 py-1.5 rounded-md bg-[#0B0B0A] border border-white/[0.08] text-xs text-neutral-200 focus:outline-none"
               >
-                <option value="all">Semua Foto</option>
-                <option value="photographer">Hanya Fotografer</option>
-                <option value="guest">Hanya Tamu</option>
+                <option value="all">Semua Sumber</option>
+                <option value="photographer">Kamera Utama</option>
+                <option value="guest">Kamera Tamu</option>
               </select>
             )}
           </div>
@@ -1046,14 +1042,14 @@ export default function EventControlRoom({
           {controlTab === 'gallery' && (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5">
               {approvedPhotos.length === 0 ? (
-                <div className="col-span-full py-16 text-center text-xs text-neutral-400">
+                <div className="col-span-full py-20 text-center text-xs text-neutral-500">
                   Belum ada foto pada filter ini.
                 </div>
               ) : (
                 approvedPhotos.map((photo) => (
                   <div
                     key={photo.id}
-                    className="group relative rounded-xl overflow-hidden bg-neutral-950 border border-white/10 aspect-[4/3]"
+                    className="group relative rounded-md overflow-hidden bg-[#0B0B0A] border border-white/[0.07] aspect-[4/3]"
                   >
                     <img
                       src={photo.url}
@@ -1061,16 +1057,16 @@ export default function EventControlRoom({
                       className="w-full h-full object-cover"
                     />
                     <div className="absolute inset-x-0 bottom-0 p-2.5 bg-gradient-to-t from-black/90 via-black/50 to-transparent flex items-center justify-between">
-                      <span className="text-[11px] font-medium text-white truncate">
+                      <span className="text-[11px] font-medium text-neutral-200 truncate">
                         {photo.source === 'photographer'
-                          ? '📷 Kamera Utama'
-                          : `👤 ${photo.guest_name || 'Tamu'}`}
+                          ? 'Kamera Utama'
+                          : photo.guest_name || 'Tamu'}
                       </span>
                       <button
                         type="button"
                         onClick={() => handleForceDeletePhoto(photo.id)}
-                        title="Force Delete Foto"
-                        className="p-1.5 rounded-lg bg-rose-600/90 hover:bg-rose-500 text-white"
+                        title="Hapus Foto"
+                        className="p-1.5 rounded bg-black/70 hover:bg-rose-600 text-neutral-300 hover:text-white transition-colors"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -1085,14 +1081,14 @@ export default function EventControlRoom({
           {controlTab === 'moderation' && (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5">
               {pendingPhotos.length === 0 ? (
-                <div className="col-span-full py-16 text-center text-xs text-neutral-400">
-                  Antrean moderasi bersih! Semua foto tamu telah ditinjau.
+                <div className="col-span-full py-20 text-center text-xs text-neutral-500">
+                  Tidak ada antrean foto yang menunggu persetujuan.
                 </div>
               ) : (
                 pendingPhotos.map((photo) => (
                   <div
                     key={photo.id}
-                    className="rounded-xl overflow-hidden bg-neutral-950 border border-amber-500/30 flex flex-col"
+                    className="rounded-md overflow-hidden bg-[#0B0B0A] border border-white/[0.1] flex flex-col"
                   >
                     <div className="aspect-[4/3] overflow-hidden bg-black">
                       <img
@@ -1102,8 +1098,8 @@ export default function EventControlRoom({
                       />
                     </div>
                     <div className="p-3 space-y-2.5">
-                      <div className="text-xs font-semibold text-white truncate">
-                        📸 {photo.guest_name || 'Tamu Tanpa Nama'}
+                      <div className="text-xs font-medium text-[#F5F4F0] truncate">
+                        {photo.guest_name || 'Tamu'}
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <button
@@ -1111,7 +1107,7 @@ export default function EventControlRoom({
                           onClick={() =>
                             handleModeratePhoto(photo.id, 'approved')
                           }
-                          className="py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold text-xs flex items-center justify-center gap-1"
+                          className="py-1.5 rounded bg-[#F5F4F0] hover:bg-white text-[#0E0E0D] font-medium text-xs flex items-center justify-center gap-1"
                         >
                           <Check className="w-3.5 h-3.5" />
                           <span>Setujui</span>
@@ -1121,7 +1117,7 @@ export default function EventControlRoom({
                           onClick={() =>
                             handleModeratePhoto(photo.id, 'rejected')
                           }
-                          className="py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center justify-center gap-1"
+                          className="py-1.5 rounded bg-rose-950/70 hover:bg-rose-900 border border-rose-500/30 text-rose-200 font-medium text-xs flex items-center justify-center gap-1"
                         >
                           <X className="w-3.5 h-3.5" />
                           <span>Tolak</span>

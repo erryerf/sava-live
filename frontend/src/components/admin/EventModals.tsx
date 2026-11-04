@@ -219,34 +219,34 @@ export function CreateEventWizardModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="w-full max-w-lg rounded-3xl bg-neutral-900 border border-white/15 p-6 space-y-5 shadow-2xl">
-        <div className="flex items-center justify-between border-b border-white/10 pb-3">
+      <div className="w-full max-w-lg rounded-lg bg-[#121211] border border-white/[0.08] p-6 space-y-5 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-white/[0.07] pb-3.5">
           <div>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400">
+            <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-neutral-500">
               Langkah {wizardStep} dari 3
             </span>
-            <h2 className="text-lg font-extrabold text-white">
+            <h2 className="text-lg font-semibold text-[#F5F4F0] mt-0.5">
               {wizardStep === 1
                 ? 'Detail Dasar Acara'
                 : wizardStep === 2
                   ? 'Tema Visual & Moderasi'
-                  : 'Event Siap! Kredensial FTP & QR'}
+                  : 'Acara Siap • Kredensial FTP & QR'}
             </h2>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-full text-neutral-400 hover:text-white"
+            className="p-1.5 rounded text-neutral-400 hover:text-white"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {wizardStep === 1 && (
           <div className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-neutral-300 mb-1">
-                Teks Pembuka Header (Editable)
+              <label className="block text-xs font-medium text-neutral-300 mb-1">
+                Subjudul Pembuka
               </label>
               <input
                 type="text"
@@ -255,13 +255,13 @@ export function CreateEventWizardModal({
                 onChange={(e) =>
                   setFormData({ ...formData, header_subtitle: e.target.value })
                 }
-                className="w-full px-3.5 py-2.5 rounded-xl bg-neutral-950 border border-white/15 text-sm text-white"
+                className="w-full px-3.5 py-2 rounded-md bg-[#0B0B0A] border border-white/[0.09] text-sm text-[#F5F4F0]"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-neutral-300 mb-1">
-                Nama Pengantin / Nama Acara
+              <label className="block text-xs font-medium text-neutral-300 mb-1">
+                Nama Acara / Mempelai
               </label>
               <input
                 type="text"
@@ -271,13 +271,13 @@ export function CreateEventWizardModal({
                 onChange={(e) =>
                   setFormData({ ...formData, name: e.target.value })
                 }
-                className="w-full px-3.5 py-2.5 rounded-xl bg-neutral-950 border border-white/15 text-sm text-white"
+                className="w-full px-3.5 py-2 rounded-md bg-[#0B0B0A] border border-white/[0.09] text-sm text-[#F5F4F0]"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-neutral-300 mb-1">
-                Slug URL &amp; Username FTP (Opsional, otomatis jika kosong)
+              <label className="block text-xs font-medium text-neutral-300 mb-1">
+                Kode URL &amp; Username FTP (Opsional)
               </label>
               <input
                 type="text"
@@ -286,13 +286,13 @@ export function CreateEventWizardModal({
                 onChange={(e) =>
                   setFormData({ ...formData, slug: e.target.value })
                 }
-                className="w-full px-3.5 py-2.5 rounded-xl bg-neutral-950 border border-white/15 text-sm font-mono text-white"
+                className="w-full px-3.5 py-2 rounded-md bg-[#0B0B0A] border border-white/[0.09] text-sm font-mono text-[#F5F4F0]"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-neutral-300 mb-1">
+                <label className="block text-xs font-medium text-neutral-300 mb-1">
                   Waktu Mulai
                 </label>
                 <input
@@ -301,11 +301,11 @@ export function CreateEventWizardModal({
                   onChange={(e) =>
                     setFormData({ ...formData, start_time: e.target.value })
                   }
-                  className="w-full px-3 py-2 rounded-xl bg-neutral-950 border border-white/15 text-xs text-white"
+                  className="w-full px-3 py-2 rounded-md bg-[#0B0B0A] border border-white/[0.09] text-xs text-[#F5F4F0]"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-neutral-300 mb-1">
+                <label className="block text-xs font-medium text-neutral-300 mb-1">
                   Waktu Selesai
                 </label>
                 <input
@@ -314,7 +314,7 @@ export function CreateEventWizardModal({
                   onChange={(e) =>
                     setFormData({ ...formData, end_time: e.target.value })
                   }
-                  className="w-full px-3 py-2 rounded-xl bg-neutral-950 border border-white/15 text-xs text-white"
+                  className="w-full px-3 py-2 rounded-md bg-[#0B0B0A] border border-white/[0.09] text-xs text-[#F5F4F0]"
                 />
               </div>
             </div>
@@ -323,7 +323,7 @@ export function CreateEventWizardModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2.5 rounded-xl text-xs font-semibold bg-neutral-800 text-neutral-300"
+                className="px-4 py-2 rounded-md text-xs font-medium bg-[#1A1A18] hover:bg-[#242422] border border-white/[0.08] text-neutral-300"
               >
                 Batal
               </button>
@@ -331,9 +331,9 @@ export function CreateEventWizardModal({
                 type="button"
                 disabled={!formData.name.trim()}
                 onClick={() => setWizardStep(2)}
-                className="px-5 py-2.5 rounded-xl text-xs font-bold bg-amber-400 text-neutral-950 disabled:opacity-40"
+                className="px-4 py-2 rounded-md text-xs font-medium bg-[#F5F4F0] hover:bg-white text-[#0E0E0D] disabled:opacity-40"
               >
-                Lanjut ke Langkah 2 &rarr;
+                Lanjut &rarr;
               </button>
             </div>
           </div>
@@ -343,8 +343,8 @@ export function CreateEventWizardModal({
           <form onSubmit={handleCreateEventSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-neutral-300 mb-1">
-                  Theme Color (Hex)
+                <label className="block text-xs font-medium text-neutral-300 mb-1">
+                  Warna Aksen (Hex)
                 </label>
                 <div className="flex items-center gap-2">
                   <input
@@ -353,7 +353,7 @@ export function CreateEventWizardModal({
                     onChange={(e) =>
                       setFormData({ ...formData, theme_color: e.target.value })
                     }
-                    className="w-10 h-10 rounded-lg bg-transparent border border-white/15 cursor-pointer"
+                    className="w-9 h-9 rounded bg-transparent border border-white/[0.09] cursor-pointer"
                   />
                   <input
                     type="text"
@@ -361,14 +361,14 @@ export function CreateEventWizardModal({
                     onChange={(e) =>
                       setFormData({ ...formData, theme_color: e.target.value })
                     }
-                    className="flex-1 px-3 py-2 rounded-xl bg-neutral-950 border border-white/15 text-xs font-mono text-white"
+                    className="flex-1 px-3 py-2 rounded-md bg-[#0B0B0A] border border-white/[0.09] text-xs font-mono text-[#F5F4F0]"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-neutral-300 mb-1">
-                  Batas Upload Tamu
+                <label className="block text-xs font-medium text-neutral-300 mb-1">
+                  Batas Unggah Tamu
                 </label>
                 <input
                   type="number"
@@ -381,21 +381,21 @@ export function CreateEventWizardModal({
                       guest_upload_limit: Number(e.target.value),
                     })
                   }
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-neutral-950 border border-white/15 text-xs text-white"
+                  className="w-full px-3.5 py-2 rounded-md bg-[#0B0B0A] border border-white/[0.09] text-xs text-[#F5F4F0]"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-neutral-300 mb-1">
-                Foto Header Galeri Tamu (JPG/PNG - Otomatis Digelapkan)
+              <label className="block text-xs font-medium text-neutral-300 mb-1">
+                Foto Sampul Galeri (JPG/PNG)
               </label>
-              <label className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-dashed border-white/20 bg-neutral-950 hover:bg-neutral-900 cursor-pointer text-xs text-neutral-300">
-                <Upload className="w-4 h-4 text-amber-400" />
+              <label className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-md border border-dashed border-white/15 bg-[#0B0B0A] hover:bg-[#161614] cursor-pointer text-xs text-neutral-300">
+                <Upload className="w-3.5 h-3.5 text-neutral-400" />
                 <span>
                   {headerFile
                     ? headerFile.name
-                    : 'Pilih foto pengantin/acara untuk latar header'}
+                    : 'Pilih foto sampul galeri tamu'}
                 </span>
                 <input
                   type="file"
@@ -408,10 +408,10 @@ export function CreateEventWizardModal({
               </label>
 
               {headerPreviewDataUrl && (
-                <div className="mt-2.5 relative h-24 rounded-xl overflow-hidden border border-white/15 flex flex-col items-center justify-center text-center">
+                <div className="mt-2.5 relative h-24 rounded-md overflow-hidden border border-white/[0.08] flex flex-col items-center justify-center text-center">
                   <img
                     src={headerPreviewDataUrl}
-                    alt="Pratinjau foto header"
+                    alt="Pratinjau foto sampul"
                     className="absolute inset-0 w-full h-full object-cover brightness-[0.38]"
                   />
                   <div className="absolute inset-0 bg-gradient-to-b from-black/60 to-neutral-950/90" />
@@ -431,13 +431,13 @@ export function CreateEventWizardModal({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-neutral-300 mb-1">
-                Custom Frame Overlay (.PNG Transparan - Opsional)
+              <label className="block text-xs font-medium text-neutral-300 mb-1">
+                Bingkai Foto (.PNG Transparan - Opsional)
               </label>
-              <label className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-dashed border-white/20 bg-neutral-950 hover:bg-neutral-900 cursor-pointer text-xs text-neutral-300">
-                <Upload className="w-4 h-4 text-amber-400" />
+              <label className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-md border border-dashed border-white/15 bg-[#0B0B0A] hover:bg-[#161614] cursor-pointer text-xs text-neutral-300">
+                <Upload className="w-3.5 h-3.5 text-neutral-400" />
                 <span>
-                  {frameFile ? frameFile.name : 'Pilih file PNG frame acara'}
+                  {frameFile ? frameFile.name : 'Pilih file PNG bingkai acara'}
                 </span>
                 <input
                   type="file"
@@ -448,9 +448,9 @@ export function CreateEventWizardModal({
               </label>
             </div>
 
-            <label className="flex items-center justify-between p-3.5 rounded-xl bg-neutral-950 border border-white/10 cursor-pointer">
+            <label className="flex items-center justify-between p-3 rounded-md bg-[#0B0B0A] border border-white/[0.08] cursor-pointer">
               <div>
-                <div className="text-xs font-bold text-white">
+                <div className="text-xs font-medium text-[#F5F4F0]">
                   Moderasi Foto Tamu
                 </div>
                 <div className="text-[11px] text-neutral-400">
@@ -466,7 +466,7 @@ export function CreateEventWizardModal({
                     require_guest_moderation: e.target.checked,
                   })
                 }
-                className="w-4 h-4 accent-amber-400"
+                className="w-4 h-4 accent-white"
               />
             </label>
 
@@ -474,19 +474,19 @@ export function CreateEventWizardModal({
               <button
                 type="button"
                 onClick={() => setWizardStep(1)}
-                className="px-4 py-2.5 rounded-xl text-xs font-semibold bg-neutral-800 text-neutral-300"
+                className="px-4 py-2 rounded-md text-xs font-medium bg-[#1A1A18] hover:bg-[#242422] border border-white/[0.08] text-neutral-300"
               >
                 &larr; Kembali
               </button>
               <button
                 type="submit"
                 disabled={submittingWizard}
-                className="px-5 py-2.5 rounded-xl text-xs font-bold bg-amber-400 text-neutral-950 flex items-center gap-2"
+                className="px-4 py-2 rounded-md text-xs font-medium bg-[#F5F4F0] hover:bg-white text-[#0E0E0D] flex items-center gap-2"
               >
                 {submittingWizard && (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 )}
-                <span>Buat Event &amp; Generate FTP</span>
+                <span>Simpan &amp; Buat Acara</span>
               </button>
             </div>
           </form>
@@ -494,33 +494,33 @@ export function CreateEventWizardModal({
 
         {wizardStep === 3 && createdEventResult && (
           <div className="space-y-4">
-            <div className="p-4 rounded-2xl bg-neutral-950 border border-emerald-500/30 space-y-2 text-xs font-mono">
-              <div className="text-emerald-400 font-sans font-bold text-xs mb-1 flex items-center gap-1.5">
-                <Camera className="w-4 h-4" />
-                <span>Kredensial FTP Kamera Fotografer</span>
+            <div className="p-4 rounded-md bg-[#0B0B0A] border border-white/[0.08] space-y-2 text-xs font-mono">
+              <div className="text-[#F5F4F0] font-sans font-medium text-xs mb-1 flex items-center gap-1.5">
+                <Camera className="w-3.5 h-3.5 text-neutral-400" />
+                <span>Kredensial FTP Kamera</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-neutral-400">Port:</span>
-                <span className="text-white">2121</span>
+                <span className="text-neutral-500">Port:</span>
+                <span className="text-neutral-200">2121</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-neutral-400">Username (Slug):</span>
-                <span className="text-amber-300 font-bold">
+                <span className="text-neutral-500">Username (Slug):</span>
+                <span className="text-[#F5F4F0]">
                   {createdEventResult.ftp_credentials?.username ||
                     createdEventResult.slug}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-neutral-400">Password:</span>
-                <span className="text-emerald-300 font-bold">
+                <span className="text-neutral-500">Password:</span>
+                <span className="text-emerald-400">
                   {createdEventResult.ftp_credentials?.password ||
                     '(Tersimpan)'}
                 </span>
               </div>
             </div>
 
-            <div className="flex flex-col items-center p-4 rounded-2xl bg-neutral-950 border border-white/10 space-y-2">
-              <div ref={qrCanvasRef} className="p-3 bg-white rounded-xl">
+            <div className="flex flex-col items-center p-4 rounded-md bg-[#0B0B0A] border border-white/[0.08] space-y-2.5">
+              <div ref={qrCanvasRef} className="p-3 bg-white rounded">
                 <QRCodeCanvas
                   value={`${originUrl.replace(/\/+$/, '')}/${createdEventResult.slug}`}
                   size={140}
@@ -530,19 +530,19 @@ export function CreateEventWizardModal({
               <button
                 type="button"
                 onClick={() => downloadQrCodePng(createdEventResult.slug)}
-                className="text-xs font-bold text-amber-300 hover:underline flex items-center gap-1"
+                className="text-xs font-medium text-neutral-300 hover:text-white flex items-center gap-1.5"
               >
                 <Download className="w-3.5 h-3.5" />
-                <span>Unduh QR Code Siap Cetak (.PNG)</span>
+                <span>Unduh QR Code (.PNG)</span>
               </button>
             </div>
 
             <button
               type="button"
               onClick={() => onCreatedAndOpenControlRoom(createdEventResult)}
-              className="w-full py-3 rounded-xl text-xs font-bold bg-amber-400 text-neutral-950"
+              className="w-full py-2.5 rounded-md text-xs font-medium bg-[#F5F4F0] hover:bg-white text-[#0E0E0D]"
             >
-              Masuk ke Control Room Acara &rarr;
+              Buka Ruang Kontrol Acara &rarr;
             </button>
           </div>
         )}
@@ -716,30 +716,30 @@ export function EditEventModal({
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
       <form
         onSubmit={handleSaveEditEvent}
-        className="w-full max-w-lg rounded-3xl bg-neutral-900 border border-white/15 p-6 space-y-4 shadow-2xl my-8"
+        className="w-full max-w-lg rounded-lg bg-[#121211] border border-white/[0.08] p-6 space-y-4 shadow-2xl my-8"
       >
-        <div className="flex items-center justify-between border-b border-white/10 pb-3">
+        <div className="flex items-center justify-between border-b border-white/[0.07] pb-3.5">
           <div>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400">
-              Edit Pengaturan Acara
+            <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-neutral-500">
+              Pengaturan Acara
             </span>
-            <h2 className="text-lg font-extrabold text-white">
+            <h2 className="text-lg font-semibold text-[#F5F4F0] mt-0.5">
               {editingEvent.name}
             </h2>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-full text-neutral-400 hover:text-white"
+            className="p-1.5 rounded text-neutral-400 hover:text-white"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         <div className="grid sm:grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-semibold text-neutral-300 mb-1">
-              Teks Pembuka Header
+            <label className="block text-xs font-medium text-neutral-300 mb-1">
+              Subjudul Pembuka
             </label>
             <input
               type="text"
@@ -751,13 +751,13 @@ export function EditEventModal({
                   header_subtitle: e.target.value,
                 })
               }
-              className="w-full px-3.5 py-2 rounded-xl bg-neutral-950 border border-white/15 text-xs text-white"
+              className="w-full px-3 py-2 rounded-md bg-[#0B0B0A] border border-white/[0.09] text-xs text-[#F5F4F0]"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-neutral-300 mb-1">
-              Nama Pengantin / Acara
+            <label className="block text-xs font-medium text-neutral-300 mb-1">
+              Nama Acara / Mempelai
             </label>
             <input
               type="text"
@@ -767,15 +767,15 @@ export function EditEventModal({
               onChange={(e) =>
                 setEditFormData({ ...editFormData, name: e.target.value })
               }
-              className="w-full px-3.5 py-2 rounded-xl bg-neutral-950 border border-white/15 text-xs text-white"
+              className="w-full px-3 py-2 rounded-md bg-[#0B0B0A] border border-white/[0.09] text-xs text-[#F5F4F0]"
             />
           </div>
         </div>
 
         <div className="grid sm:grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-semibold text-neutral-300 mb-1">
-              Slug URL &amp; Username FTP
+            <label className="block text-xs font-medium text-neutral-300 mb-1">
+              Kode URL &amp; Username FTP
             </label>
             <input
               type="text"
@@ -784,13 +784,13 @@ export function EditEventModal({
               onChange={(e) =>
                 setEditFormData({ ...editFormData, slug: e.target.value })
               }
-              className="w-full px-3.5 py-2 rounded-xl bg-neutral-950 border border-white/15 text-xs font-mono text-white"
+              className="w-full px-3 py-2 rounded-md bg-[#0B0B0A] border border-white/[0.09] text-xs font-mono text-[#F5F4F0]"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-neutral-300 mb-1">
-              Status Event
+            <label className="block text-xs font-medium text-neutral-300 mb-1">
+              Status Acara
             </label>
             <select
               value={editFormData.status}
@@ -800,18 +800,18 @@ export function EditEventModal({
                   status: e.target.value as EventStatus,
                 })
               }
-              className="w-full px-3.5 py-2 rounded-xl bg-neutral-950 border border-white/15 text-xs text-white"
+              className="w-full px-3 py-2 rounded-md bg-[#0B0B0A] border border-white/[0.09] text-xs text-[#F5F4F0]"
             >
-              <option value="active">Active (Live)</option>
+              <option value="active">Berlangsung (Live)</option>
               <option value="draft">Draft</option>
-              <option value="archived">Archived (Selesai)</option>
+              <option value="archived">Selesai (Diarsipkan)</option>
             </select>
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-semibold text-neutral-300 mb-1">
+            <label className="block text-xs font-medium text-neutral-300 mb-1">
               Waktu Mulai
             </label>
             <input
@@ -820,11 +820,11 @@ export function EditEventModal({
               onChange={(e) =>
                 setEditFormData({ ...editFormData, start_time: e.target.value })
               }
-              className="w-full px-3 py-2 rounded-xl bg-neutral-950 border border-white/15 text-xs text-white"
+              className="w-full px-3 py-2 rounded-md bg-[#0B0B0A] border border-white/[0.09] text-xs text-[#F5F4F0]"
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-neutral-300 mb-1">
+            <label className="block text-xs font-medium text-neutral-300 mb-1">
               Waktu Selesai
             </label>
             <input
@@ -833,15 +833,15 @@ export function EditEventModal({
               onChange={(e) =>
                 setEditFormData({ ...editFormData, end_time: e.target.value })
               }
-              className="w-full px-3 py-2 rounded-xl bg-neutral-950 border border-white/15 text-xs text-white"
+              className="w-full px-3 py-2 rounded-md bg-[#0B0B0A] border border-white/[0.09] text-xs text-[#F5F4F0]"
             />
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-semibold text-neutral-300 mb-1">
-              Theme Color (Hex)
+            <label className="block text-xs font-medium text-neutral-300 mb-1">
+              Warna Aksen (Hex)
             </label>
             <div className="flex items-center gap-2">
               <input
@@ -853,7 +853,7 @@ export function EditEventModal({
                     theme_color: e.target.value,
                   })
                 }
-                className="w-9 h-9 rounded-lg bg-transparent border border-white/15 cursor-pointer"
+                className="w-9 h-9 rounded bg-transparent border border-white/[0.09] cursor-pointer"
               />
               <input
                 type="text"
@@ -864,14 +864,14 @@ export function EditEventModal({
                     theme_color: e.target.value,
                   })
                 }
-                className="flex-1 px-3 py-2 rounded-xl bg-neutral-950 border border-white/15 text-xs font-mono text-white"
+                className="flex-1 px-3 py-2 rounded-md bg-[#0B0B0A] border border-white/[0.09] text-xs font-mono text-[#F5F4F0]"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-neutral-300 mb-1">
-              Batas Upload Tamu
+            <label className="block text-xs font-medium text-neutral-300 mb-1">
+              Batas Unggah Tamu
             </label>
             <input
               type="number"
@@ -884,22 +884,22 @@ export function EditEventModal({
                   guest_upload_limit: Number(e.target.value),
                 })
               }
-              className="w-full px-3.5 py-2 rounded-xl bg-neutral-950 border border-white/15 text-xs text-white"
+              className="w-full px-3 py-2 rounded-md bg-[#0B0B0A] border border-white/[0.09] text-xs text-[#F5F4F0]"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-neutral-300 mb-1">
-            Foto Header Galeri Tamu (Otomatis Digelapkan)
+          <label className="block text-xs font-medium text-neutral-300 mb-1">
+            Foto Sampul Galeri Tamu
           </label>
           <div className="flex gap-2">
-            <label className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-dashed border-white/20 bg-neutral-950 hover:bg-neutral-900 cursor-pointer text-xs text-neutral-300">
-              <Upload className="w-4 h-4 text-amber-400" />
+            <label className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-md border border-dashed border-white/15 bg-[#0B0B0A] hover:bg-[#161614] cursor-pointer text-xs text-neutral-300">
+              <Upload className="w-3.5 h-3.5 text-neutral-400" />
               <span className="truncate">
                 {editModalHeaderFile
                   ? editModalHeaderFile.name
-                  : 'Pilih / Ganti Foto Header'}
+                  : 'Pilih / Ganti Foto Sampul'}
               </span>
               <input
                 type="file"
@@ -926,7 +926,7 @@ export function EditEventModal({
                   setEditModalHeaderFile(null);
                   setEditModalHeaderPreview(null);
                 }}
-                className="px-3 py-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-xs text-neutral-300"
+                className="px-3 py-2 rounded-md bg-[#1A1A18] hover:bg-[#242422] border border-white/[0.08] text-xs text-neutral-300"
               >
                 Hapus Foto
               </button>
@@ -934,9 +934,9 @@ export function EditEventModal({
           </div>
         </div>
 
-        <label className="flex items-center justify-between p-3 rounded-xl bg-neutral-950 border border-white/10 cursor-pointer">
+        <label className="flex items-center justify-between p-3 rounded-md bg-[#0B0B0A] border border-white/[0.08] cursor-pointer">
           <div>
-            <div className="text-xs font-bold text-white">
+            <div className="text-xs font-medium text-[#F5F4F0]">
               Moderasi Foto Tamu
             </div>
             <div className="text-[11px] text-neutral-400">
@@ -952,7 +952,7 @@ export function EditEventModal({
                 require_guest_moderation: e.target.checked,
               })
             }
-            className="w-4 h-4 accent-amber-400"
+            className="w-4 h-4 accent-white"
           />
         </label>
 
@@ -960,14 +960,14 @@ export function EditEventModal({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2.5 rounded-xl text-xs font-semibold bg-neutral-800 text-neutral-300"
+            className="px-4 py-2 rounded-md text-xs font-medium bg-[#1A1A18] hover:bg-[#242422] border border-white/[0.08] text-neutral-300"
           >
             Batal
           </button>
           <button
             type="submit"
             disabled={submittingEdit}
-            className="px-5 py-2.5 rounded-xl text-xs font-bold bg-amber-400 hover:bg-amber-300 text-neutral-950 flex items-center gap-2"
+            className="px-4 py-2 rounded-md text-xs font-medium bg-[#F5F4F0] hover:bg-white text-[#0E0E0D] flex items-center gap-2"
           >
             {submittingEdit && (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1014,7 +1014,7 @@ export function DeleteEventModal({
         onEventDeleted(deletingEvent.id);
         await onReloadEvents();
         onClose();
-        showToast('Event berhasil dihapus.');
+        showToast('Acara dihapus.');
         return;
       }
 
@@ -1022,9 +1022,9 @@ export function DeleteEventModal({
       onEventDeleted(deletingEvent.id);
       await onReloadEvents();
       onClose();
-      showToast('Event berhasil dihapus.');
+      showToast('Acara dihapus.');
     } catch (err) {
-      showToast((err as Error).message || 'Gagal menghapus event.');
+      showToast((err as Error).message || 'Gagal menghapus acara.');
     } finally {
       setSubmittingDelete(false);
     }
@@ -1032,29 +1032,24 @@ export function DeleteEventModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="w-full max-w-md rounded-3xl bg-neutral-900 border border-rose-500/30 p-6 space-y-4 shadow-2xl">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-rose-500/20 border border-rose-500/30 text-rose-400 flex items-center justify-center shrink-0">
-            <Trash2 className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="text-base font-extrabold text-white">
-              Hapus Event Ini?
-            </h3>
-            <p className="text-xs text-neutral-400">
-              Event <strong className="text-white">{deletingEvent.name}</strong>{' '}
-              (<span className="font-mono">{deletingEvent.slug}</span>) akan
-              dinonaktifkan dan dihapus.
-            </p>
-          </div>
+      <div className="w-full max-w-md rounded-lg bg-[#121211] border border-white/[0.08] p-6 space-y-4 shadow-2xl">
+        <div className="space-y-1.5">
+          <h3 className="text-base font-semibold text-[#F5F4F0]">
+            Hapus Acara Ini?
+          </h3>
+          <p className="text-xs text-neutral-400 leading-relaxed">
+            Acara <strong className="text-[#F5F4F0]">{deletingEvent.name}</strong>{' '}
+            (<span className="font-mono">/{deletingEvent.slug}</span>) akan
+            dinonaktifkan secara permanen.
+          </p>
         </div>
 
-        <div className="flex justify-end gap-2.5 pt-2">
+        <div className="flex justify-end gap-2 pt-2">
           <button
             type="button"
             disabled={submittingDelete}
             onClick={onClose}
-            className="px-4 py-2.5 rounded-xl text-xs font-semibold bg-neutral-800 hover:bg-neutral-700 text-neutral-200"
+            className="px-4 py-2 rounded-md text-xs font-medium bg-[#1A1A18] hover:bg-[#242422] border border-white/[0.08] text-neutral-300"
           >
             Batal
           </button>
@@ -1062,12 +1057,12 @@ export function DeleteEventModal({
             type="button"
             disabled={submittingDelete}
             onClick={handleConfirmDeleteEvent}
-            className="px-5 py-2.5 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white flex items-center gap-2"
+            className="px-4 py-2 rounded-md text-xs font-medium bg-rose-600 hover:bg-rose-500 text-white flex items-center gap-2"
           >
             {submittingDelete && (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
             )}
-            <span>Ya, Hapus Event</span>
+            <span>Hapus Acara</span>
           </button>
         </div>
       </div>

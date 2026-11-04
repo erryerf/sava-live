@@ -2,7 +2,14 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Loader2, Pencil, Plus, Sparkles, Trash2 } from 'lucide-react';
+import {
+  ArrowUpRight,
+  Calendar,
+  Loader2,
+  Pencil,
+  Plus,
+  Trash2,
+} from 'lucide-react';
 import { AdminEvent, EventStatus } from '@/lib/types';
 
 interface EventListSectionProps {
@@ -16,6 +23,19 @@ interface EventListSectionProps {
   onOpenDeleteModal: (evt: AdminEvent) => void;
 }
 
+function formatEventDate(iso?: string): string {
+  if (!iso) return '—';
+  try {
+    return new Date(iso).toLocaleDateString('id-ID', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  } catch {
+    return '—';
+  }
+}
+
 export default function EventListSection({
   events,
   loading,
@@ -26,158 +46,221 @@ export default function EventListSection({
   onOpenEditModal,
   onOpenDeleteModal,
 }: EventListSectionProps) {
+  const activeCount = events.filter((e) => e.status === 'active').length;
+
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      {/* Page Header */}
+      <div className="flex flex-wrap items-end justify-between gap-4 pb-5 border-b border-white/[0.07]">
         <div>
-          <h1 className="text-2xl font-extrabold text-white">
-            Daftar Event Klien
+          <div className="text-[11px] uppercase tracking-[0.18em] text-neutral-500 font-medium">
+            Manajemen Galeri
+          </div>
+          <h1 className="text-2xl font-semibold tracking-tight text-[#F5F4F0] mt-1">
+            Daftar Acara
           </h1>
-          <p className="text-xs text-neutral-400 mt-1">
-            Kelola ruang kontrol kamera FTP, moderasi tamu, dan arsip ZIP.
-          </p>
         </div>
 
-        <button
-          type="button"
-          onClick={onOpenCreateWizard}
-          className="px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-neutral-950 font-bold text-xs flex items-center gap-2 shadow-lg"
-        >
-          <Plus className="w-4 h-4 stroke-[2.5]" />
-          <span>Buat Event Baru</span>
-        </button>
-      </div>
+        <div className="flex items-center gap-3">
+          {/* Segmented Filter */}
+          <div className="inline-flex p-0.5 rounded-md bg-[#141413] border border-white/[0.07]">
+            {(
+              [
+                { key: 'all', label: 'Semua' },
+                { key: 'active', label: `Aktif (${activeCount})` },
+                { key: 'archived', label: 'Selesai' },
+              ] as const
+            ).map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => onChangeFilter(tab.key)}
+                className={`px-3 py-1.5 rounded text-xs transition-colors ${
+                  statusFilter === tab.key
+                    ? 'bg-white/[0.1] text-[#F5F4F0] font-medium'
+                    : 'text-neutral-400 hover:text-neutral-200'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
 
-      {/* Filter Pills: All vs Active vs Archived */}
-      <div className="flex gap-2">
-        {(['all', 'active', 'archived'] as const).map((st) => (
           <button
-            key={st}
             type="button"
-            onClick={() => onChangeFilter(st)}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold capitalize transition ${
-              statusFilter === st
-                ? 'bg-white text-neutral-950'
-                : 'bg-neutral-900 text-neutral-400 hover:text-white border border-white/10'
-            }`}
+            onClick={onOpenCreateWizard}
+            className="px-3.5 py-2 rounded-md bg-[#F5F4F0] hover:bg-white text-[#0E0E0D] font-medium text-xs flex items-center gap-1.5 transition-colors"
           >
-            {st === 'all' ? 'Semua Event' : st}
+            <Plus className="w-3.5 h-3.5 stroke-[2.2]" />
+            <span>Acara Baru</span>
           </button>
-        ))}
+        </div>
       </div>
 
-      {/* Events Table */}
-      <div className="rounded-2xl bg-neutral-900 border border-white/10 overflow-hidden">
+      {/* Events List Table */}
+      <div className="rounded-lg bg-[#121211] border border-white/[0.07] overflow-hidden">
         {loading ? (
-          <div className="py-16 flex justify-center">
-            <Loader2 className="w-6 h-6 animate-spin text-amber-400" />
+          <div className="py-20 flex justify-center">
+            <Loader2 className="w-5 h-5 animate-spin text-neutral-400" />
           </div>
         ) : events.length === 0 ? (
-          <div className="py-16 text-center space-y-2">
-            <Sparkles className="w-8 h-8 text-neutral-500 mx-auto" />
-            <p className="text-sm font-semibold text-white">
-              Belum ada event terdaftar
+          <div className="py-20 text-center space-y-2">
+            <p className="text-sm font-medium text-neutral-200">
+              Belum ada acara pada filter ini
             </p>
-            <p className="text-xs text-neutral-400">
-              Klik &ldquo;Buat Event Baru&rdquo; untuk memulai acara.
+            <p className="text-xs text-neutral-500">
+              Tekan tombol &ldquo;Acara Baru&rdquo; di kanan atas untuk membuat
+              ruang galeri.
             </p>
           </div>
         ) : (
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-white/10 text-[11px] font-bold uppercase tracking-wider text-neutral-400">
-                <th className="py-3.5 px-5">Nama Acara</th>
-                <th className="py-3.5 px-4">Slug / FTP User</th>
-                <th className="py-3.5 px-4">Status</th>
-                <th className="py-3.5 px-4">Kamera FTP</th>
-                <th className="py-3.5 px-4">Kuota Tamu</th>
-                <th className="py-3.5 px-5 text-right">Aksi</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5 text-xs">
-              {events.map((evt) => (
-                <tr key={evt.id} className="hover:bg-white/[0.02] transition">
-                  <td className="py-4 px-5 font-bold text-white flex items-center gap-2.5">
-                    <span
-                      className="w-3 h-3 rounded-full shrink-0"
-                      style={{ backgroundColor: evt.theme_color }}
-                    />
-                    <div>
-                      {evt.header_subtitle && (
-                        <div className="text-[10px] font-normal text-neutral-400 italic leading-none mb-0.5">
-                          {evt.header_subtitle}
-                        </div>
-                      )}
-                      <div>{evt.name}</div>
-                    </div>
-                  </td>
-                  <td className="py-4 px-4 font-mono text-neutral-300">
-                    {evt.slug}
-                  </td>
-                  <td className="py-4 px-4">
-                    <span
-                      className={`px-2.5 py-1 rounded-full text-[11px] font-bold uppercase ${
-                        evt.status === 'active'
-                          ? 'bg-emerald-500/15 text-emerald-300'
-                          : 'bg-neutral-800 text-neutral-400'
-                      }`}
-                    >
-                      {evt.status}
-                    </span>
-                  </td>
-                  <td className="py-4 px-4">
-                    {evt.ftp_status?.connected ? (
-                      <span className="text-emerald-400 font-semibold">
-                        ● Terhubung
-                      </span>
-                    ) : (
-                      <span className="text-neutral-500">Siaga</span>
-                    )}
-                  </td>
-                  <td className="py-4 px-4 text-neutral-300">
-                    Maks {evt.guest_upload_limit} foto
-                  </td>
-                  <td className="py-4 px-5 text-right">
-                    <div className="inline-flex items-center justify-end gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => onSelectControlRoom(evt)}
-                        className="px-3 py-1.5 rounded-lg bg-amber-400 hover:bg-amber-300 text-neutral-950 font-bold"
-                      >
-                        Control Room
-                      </button>
-                      <Link
-                        href={`/live/${evt.slug}`}
-                        target="_blank"
-                        className="px-3 py-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-semibold"
-                      >
-                        Live Wall
-                      </Link>
-                      <button
-                        type="button"
-                        onClick={() => onOpenEditModal(evt)}
-                        title="Edit Event"
-                        className="p-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-white/10"
-                      >
-                        <Pencil className="w-3.5 h-3.5 text-amber-400" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onOpenDeleteModal(evt)}
-                        title="Hapus Event"
-                        className="p-1.5 rounded-lg bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 border border-rose-500/30"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-white/[0.07] text-[11px] font-medium uppercase tracking-[0.12em] text-neutral-500 bg-[#0E0E0D]/60">
+                  <th className="py-3 px-5">Acara</th>
+                  <th className="py-3 px-4">Kode / URL</th>
+                  <th className="py-3 px-4">Tanggal</th>
+                  <th className="py-3 px-4">Status</th>
+                  <th className="py-3 px-4">Kamera</th>
+                  <th className="py-3 px-4">Batas Tamu</th>
+                  <th className="py-3 px-5 text-right">Tindakan</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-white/[0.05] text-[13px]">
+                {events.map((evt) => (
+                  <tr
+                    key={evt.id}
+                    onClick={() => onSelectControlRoom(evt)}
+                    className="hover:bg-white/[0.02] transition-colors cursor-pointer group"
+                  >
+                    <td className="py-3.5 px-5">
+                      <div className="flex items-center gap-3.5">
+                        {/* Cover Thumbnail or Minimalist Swatch */}
+                        <div
+                          className="w-11 h-8 rounded overflow-hidden bg-neutral-900 border border-white/[0.08] shrink-0 relative"
+                          style={{
+                            borderLeftColor: evt.theme_color,
+                            borderLeftWidth: '3px',
+                          }}
+                        >
+                          {evt.header_image_url ? (
+                            <img
+                              src={evt.header_image_url}
+                              alt={evt.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div
+                              className="w-full h-full opacity-25"
+                              style={{ backgroundColor: evt.theme_color }}
+                            />
+                          )}
+                        </div>
+                        <div>
+                          {evt.header_subtitle && (
+                            <div className="text-[11px] text-neutral-500 leading-none mb-1">
+                              {evt.header_subtitle}
+                            </div>
+                          )}
+                          <div className="font-medium text-[#F5F4F0] group-hover:text-white leading-tight">
+                            {evt.name}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+
+                    <td className="py-3.5 px-4 font-mono text-xs text-neutral-400">
+                      /{evt.slug}
+                    </td>
+
+                    <td className="py-3.5 px-4 text-xs text-neutral-400">
+                      <span className="inline-flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 text-neutral-600" />
+                        {formatEventDate(evt.start_time)}
+                      </span>
+                    </td>
+
+                    <td className="py-3.5 px-4">
+                      {evt.status === 'active' ? (
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                          Berlangsung
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-white/[0.04] text-neutral-400 border border-white/[0.07]">
+                          Selesai
+                        </span>
+                      )}
+                    </td>
+
+                    <td className="py-3.5 px-4 text-xs">
+                      {evt.ftp_status?.connected ? (
+                        <span className="text-emerald-400 font-medium">
+                          Terhubung
+                        </span>
+                      ) : (
+                        <span className="text-neutral-500">Siaga</span>
+                      )}
+                    </td>
+
+                    <td className="py-3.5 px-4 text-xs text-neutral-400">
+                      {evt.guest_upload_limit} foto / tamu
+                    </td>
+
+                    <td
+                      className="py-3.5 px-5 text-right"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="inline-flex items-center justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => onSelectControlRoom(evt)}
+                          className="px-2.5 py-1.5 rounded bg-[#F5F4F0] hover:bg-white text-[#0E0E0D] text-xs font-medium transition-colors"
+                        >
+                          Kelola
+                        </button>
+                        <Link
+                          href={`/${evt.slug}`}
+                          target="_blank"
+                          className="px-2.5 py-1.5 rounded bg-[#1A1A18] hover:bg-[#242422] text-neutral-300 border border-white/[0.07] text-xs inline-flex items-center gap-1 transition-colors"
+                        >
+                          <span>Galeri</span>
+                          <ArrowUpRight className="w-3 h-3 text-neutral-500" />
+                        </Link>
+                        <Link
+                          href={`/live/${evt.slug}`}
+                          target="_blank"
+                          className="px-2.5 py-1.5 rounded bg-[#1A1A18] hover:bg-[#242422] text-neutral-300 border border-white/[0.07] text-xs inline-flex items-center gap-1 transition-colors"
+                        >
+                          <span>Live Wall</span>
+                          <ArrowUpRight className="w-3 h-3 text-neutral-500" />
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => onOpenEditModal(evt)}
+                          title="Pengaturan Acara"
+                          className="p-1.5 rounded bg-[#1A1A18] hover:bg-[#242422] text-neutral-400 hover:text-white border border-white/[0.07] transition-colors"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onOpenDeleteModal(evt)}
+                          title="Hapus Acara"
+                          className="p-1.5 rounded bg-[#1A1A18] hover:bg-rose-950/60 text-neutral-500 hover:text-rose-300 border border-white/[0.07] transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>
   );
 }
-

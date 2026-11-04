@@ -138,7 +138,7 @@ export function AdminUsersSection({
       saveStoredOperatorAccounts(updated);
       setOperators(updated);
       setNewUserForm({ name: '', email: '', password: '' });
-      showToast('Akun operator berhasil disimpan!');
+      showToast('Akun operator disimpan.');
     } catch (err) {
       showToast((err as Error).message);
     }
@@ -146,7 +146,7 @@ export function AdminUsersSection({
 
   const handleRemoveOperator = (id: string) => {
     if (operators.length <= 1) {
-      showToast('Minimal harus ada 1 akun admin aktif.');
+      showToast('Minimal harus ada 1 akun aktif.');
       return;
     }
     const updated = operators.filter((op) => op.id !== id);
@@ -157,76 +157,76 @@ export function AdminUsersSection({
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-extrabold text-white">
-          Manajemen Operator / Admin
+      <div className="pb-5 border-b border-white/[0.07]">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-neutral-500 font-medium">
+          Akses Workspace
+        </div>
+        <h1 className="text-2xl font-semibold tracking-tight text-[#F5F4F0] mt-1">
+          Tim Operator
         </h1>
-        <p className="text-xs text-neutral-400 mt-1">
-          Kelola akun email &amp; password yang diizinkan masuk ke Admin Dashboard.
-        </p>
       </div>
 
       <form
         onSubmit={handleAddOperator}
-        className="p-5 rounded-2xl bg-neutral-900 border border-white/10 grid sm:grid-cols-4 gap-3"
+        className="p-4 rounded-lg bg-[#121211] border border-white/[0.07] grid sm:grid-cols-4 gap-3"
       >
         <input
           type="text"
           required
-          placeholder="Nama Operator"
+          placeholder="Nama Lengkap"
           value={newUserForm.name}
           onChange={(e) =>
             setNewUserForm({ ...newUserForm, name: e.target.value })
           }
-          className="px-3.5 py-2.5 rounded-xl bg-neutral-950 border border-white/15 text-xs text-white"
+          className="px-3 py-2 rounded-md bg-[#0B0B0A] border border-white/[0.08] text-xs text-[#F5F4F0] placeholder:text-neutral-600 focus:outline-none focus:border-white/25"
         />
         <input
           type="email"
           required
-          placeholder="Email Login"
+          placeholder="Alamat Email"
           value={newUserForm.email}
           onChange={(e) =>
             setNewUserForm({ ...newUserForm, email: e.target.value })
           }
-          className="px-3.5 py-2.5 rounded-xl bg-neutral-950 border border-white/15 text-xs text-white"
+          className="px-3 py-2 rounded-md bg-[#0B0B0A] border border-white/[0.08] text-xs text-[#F5F4F0] placeholder:text-neutral-600 focus:outline-none focus:border-white/25"
         />
         <input
           type="password"
           required
-          placeholder="Password Baru"
+          placeholder="Kata Sandi"
           value={newUserForm.password}
           onChange={(e) =>
             setNewUserForm({ ...newUserForm, password: e.target.value })
           }
-          className="px-3.5 py-2.5 rounded-xl bg-neutral-950 border border-white/15 text-xs text-white"
+          className="px-3 py-2 rounded-md bg-[#0B0B0A] border border-white/[0.08] text-xs text-[#F5F4F0] placeholder:text-neutral-600 focus:outline-none focus:border-white/25"
         />
         <button
           type="submit"
-          className="py-2.5 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-neutral-950 font-bold text-xs transition"
+          className="py-2 px-4 rounded-md bg-[#F5F4F0] hover:bg-white text-[#0E0E0D] font-medium text-xs transition-colors"
         >
-          + Simpan / Ubah Password
+          Simpan Operator
         </button>
       </form>
 
-      <div className="p-5 rounded-2xl bg-neutral-900 border border-white/10 text-xs text-neutral-300 space-y-2">
+      <div className="rounded-lg bg-[#121211] border border-white/[0.07] divide-y divide-white/[0.05]">
         {operators.map((u) => (
           <div
             key={u.id}
-            className="flex items-center justify-between py-2.5 border-b border-white/5 last:border-0"
+            className="flex items-center justify-between px-5 py-3.5 text-xs"
           >
             <div>
-              <div className="font-bold text-white">{u.name}</div>
-              <div className="text-neutral-400 font-mono text-[11px]">
+              <div className="font-medium text-[#F5F4F0]">{u.name}</div>
+              <div className="text-neutral-500 font-mono text-[11px] mt-0.5">
                 {u.email}
               </div>
             </div>
             <button
               type="button"
               onClick={() => handleRemoveOperator(u.id)}
-              className="p-2 rounded-lg text-neutral-400 hover:text-rose-400 hover:bg-rose-500/10 transition"
+              className="p-1.5 rounded text-neutral-500 hover:text-rose-300 hover:bg-rose-950/50 transition-colors"
               title="Hapus Operator"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className="w-3.5 h-3.5" />
             </button>
           </div>
         ))}
@@ -251,20 +251,26 @@ export function AdminSettingsSection({
   }, []);
 
   return (
-    <div className="max-w-xl mx-auto space-y-6">
-      <h1 className="text-2xl font-extrabold text-white">
-        Pengaturan Autentikasi API
-      </h1>
-      <div className="p-5 rounded-2xl bg-neutral-900 border border-white/10 space-y-4">
-        <div>
-          <label className="block text-xs font-semibold text-neutral-300 mb-1.5">
-            Admin Bearer Token (`ADMIN_API_TOKEN`)
+    <div className="max-w-2xl mx-auto space-y-6">
+      <div className="pb-5 border-b border-white/[0.07]">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-neutral-500 font-medium">
+          Konfigurasi Server
+        </div>
+        <h1 className="text-2xl font-semibold tracking-tight text-[#F5F4F0] mt-1">
+          Kunci Akses API
+        </h1>
+      </div>
+
+      <div className="p-5 rounded-lg bg-[#121211] border border-white/[0.07] space-y-4">
+        <div className="space-y-1.5">
+          <label className="block text-xs font-medium text-neutral-300">
+            Bearer Token Server (`ADMIN_API_TOKEN`)
           </label>
           <input
             type="text"
             value={tokenInput}
             onChange={(e) => setTokenInput(e.target.value)}
-            className="w-full px-3.5 py-2.5 rounded-xl bg-neutral-950 border border-white/15 text-xs font-mono text-white"
+            className="w-full px-3.5 py-2 rounded-md bg-[#0B0B0A] border border-white/[0.08] text-xs font-mono text-[#F5F4F0] focus:outline-none focus:border-white/25"
           />
         </div>
         <button
@@ -272,11 +278,11 @@ export function AdminSettingsSection({
           onClick={() => {
             setAdminToken(tokenInput.trim());
             void onTokenSaved();
-            showToast('Token disimpan!');
+            showToast('Kunci akses disimpan.');
           }}
-          className="px-4 py-2.5 rounded-xl bg-amber-400 text-neutral-950 font-bold text-xs"
+          className="px-4 py-2 rounded-md bg-[#F5F4F0] hover:bg-white text-[#0E0E0D] font-medium text-xs transition-colors"
         >
-          Simpan Token
+          Simpan Perubahan
         </button>
       </div>
     </div>

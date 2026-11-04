@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Lock, Mail, ShieldCheck } from 'lucide-react';
 import { fetchAdminEvents } from '@/lib/admin-api';
 import { AdminEvent, EventStatus } from '@/lib/types';
 import AdminSidebar, { AdminNavSection } from './AdminSidebar';
@@ -103,7 +102,7 @@ export default function AdminDashboardClient() {
     );
 
     if (!matched) {
-      setLoginError('Email atau password tidak sesuai.');
+      setLoginError('Email atau kata sandi tidak sesuai.');
       return;
     }
 
@@ -112,7 +111,7 @@ export default function AdminDashboardClient() {
     }
     setLoggedInEmail(matched.email);
     setLoginPasswordInput('');
-    showToast(`Selamat datang, ${matched.name}! ✨`);
+    showToast(`Selamat datang, ${matched.name}`);
   };
 
   const handleLogout = () => {
@@ -131,92 +130,97 @@ export default function AdminDashboardClient() {
   };
 
   if (!authChecked) {
-    return <div className="min-h-screen bg-neutral-950" />;
+    return <div className="min-h-screen bg-[#0B0B0A]" />;
   }
 
-  // LOGIN GATE (Sesuai /ui-ux-flow 3.A: Autentikasi Login Email & Password)
+  // STUDIO LOGIN SCREEN
   if (!loggedInEmail) {
     return (
-      <div className="min-h-screen bg-neutral-950 text-white flex flex-col justify-center items-center px-4 py-12 relative overflow-hidden">
-        <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
+      <div className="min-h-screen bg-[#0B0B0A] text-[#F5F4F0] flex flex-col justify-between px-4 py-8">
+        <header className="max-w-6xl w-full mx-auto flex items-baseline justify-between">
+          <div className="flex items-baseline gap-2">
+            <span className="font-display text-2xl font-semibold tracking-[0.06em]">
+              SAVA
+            </span>
+            <span className="text-[10px] uppercase tracking-[0.22em] text-neutral-500">
+              Studio
+            </span>
+          </div>
+          <span className="text-xs text-neutral-500">Live Event Platform</span>
+        </header>
 
-        <div className="w-full max-w-md bg-neutral-900/90 backdrop-blur-xl border border-white/10 rounded-3xl p-7 sm:p-8 shadow-2xl space-y-6 relative z-10">
-          <div className="text-center space-y-2">
-            <div className="w-12 h-12 rounded-2xl bg-amber-400 text-neutral-950 flex items-center justify-center font-black text-xl mx-auto shadow-lg">
-              S
+        <main className="w-full max-w-sm mx-auto space-y-7">
+          <div className="space-y-1.5">
+            <div className="text-[11px] uppercase tracking-[0.18em] text-neutral-500 font-medium">
+              Akses Internal
             </div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>SAVA Live Operator Console</span>
-            </div>
-            <h1 className="text-2xl font-extrabold tracking-tight text-white">
-              Login Admin &amp; Operator
+            <h1 className="text-2xl font-semibold tracking-tight text-[#F5F4F0]">
+              Masuk ke Workspace
             </h1>
-            <p className="text-xs text-neutral-400">
-              Masuk untuk mengelola acara, kredensial FTP kamera, dan moderasi
-              galeri.
+            <p className="text-xs text-neutral-400 leading-relaxed">
+              Gunakan akun operator SAVA untuk mengelola acara dan transmisi
+              kamera.
             </p>
           </div>
 
           {loginError && (
-            <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-xs font-semibold text-rose-300 text-center">
+            <div className="px-3.5 py-2.5 rounded-md bg-rose-950/50 border border-rose-500/25 text-xs text-rose-200">
               {loginError}
             </div>
           )}
 
           <form onSubmit={handleLoginSubmit} className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-neutral-300 mb-1.5">
-                Email Operator
+            <div className="space-y-1.5">
+              <label className="block text-xs font-medium text-neutral-300">
+                Alamat Email
               </label>
-              <div className="relative">
-                <Mail className="w-4 h-4 text-neutral-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="email"
-                  required
-                  autoFocus
-                  placeholder="erryerf@gmail.com"
-                  value={loginEmailInput}
-                  onChange={(e) => setLoginEmailInput(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-neutral-950 border border-white/15 text-sm text-white placeholder:text-neutral-600 focus:outline-none focus:border-amber-400"
-                />
-              </div>
+              <input
+                type="email"
+                required
+                autoFocus
+                placeholder="nama@domain.com"
+                value={loginEmailInput}
+                onChange={(e) => setLoginEmailInput(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-md bg-[#121211] border border-white/[0.09] text-sm text-[#F5F4F0] placeholder:text-neutral-600 focus:outline-none focus:border-white/30 transition-colors"
+              />
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-neutral-300 mb-1.5">
-                Password
+            <div className="space-y-1.5">
+              <label className="block text-xs font-medium text-neutral-300">
+                Kata Sandi
               </label>
-              <div className="relative">
-                <Lock className="w-4 h-4 text-neutral-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="password"
-                  required
-                  placeholder="••••••••"
-                  value={loginPasswordInput}
-                  onChange={(e) => setLoginPasswordInput(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-neutral-950 border border-white/15 text-sm text-white placeholder:text-neutral-600 focus:outline-none focus:border-amber-400"
-                />
-              </div>
+              <input
+                type="password"
+                required
+                placeholder="••••••••"
+                value={loginPasswordInput}
+                onChange={(e) => setLoginPasswordInput(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-md bg-[#121211] border border-white/[0.09] text-sm text-[#F5F4F0] placeholder:text-neutral-600 focus:outline-none focus:border-white/30 transition-colors"
+              />
             </div>
 
             <button
               type="submit"
-              className="w-full py-3.5 px-5 rounded-xl bg-amber-400 hover:bg-amber-300 text-neutral-950 font-extrabold text-sm shadow-lg transition"
+              className="w-full py-2.5 px-4 rounded-md bg-[#F5F4F0] hover:bg-white text-[#0E0E0D] font-medium text-xs transition-colors mt-2"
             >
-              Masuk ke Ruang Kontrol
+              Masuk
             </button>
           </form>
-        </div>
+        </main>
+
+        <footer className="max-w-6xl w-full mx-auto flex items-center justify-between text-[11px] text-neutral-600">
+          <span>&copy; {new Date().getFullYear()} SAVA Documentation</span>
+          <span>sava-app.cloud</span>
+        </footer>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 flex">
+    <div className="min-h-screen bg-[#0B0B0A] text-[#F5F4F0] flex">
       {/* Toast Notification */}
       {toast && (
-        <div className="fixed top-5 right-5 z-50 px-4 py-2.5 rounded-xl bg-neutral-900 border border-white/15 text-sm font-semibold text-white shadow-2xl">
+        <div className="fixed bottom-5 right-5 z-50 px-4 py-2.5 rounded-md bg-[#181816] border border-white/[0.12] text-xs font-medium text-[#F5F4F0] shadow-2xl">
           {toast}
         </div>
       )}
@@ -234,7 +238,7 @@ export default function AdminDashboardClient() {
       />
 
       {/* MAIN CONTENT AREA */}
-      <div className="flex-1 p-8 overflow-y-auto">
+      <div className="flex-1 px-8 py-7 overflow-y-auto">
         {selectedEvent ? (
           <EventControlRoom
             selectedEvent={selectedEvent}
