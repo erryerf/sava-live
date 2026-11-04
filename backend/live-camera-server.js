@@ -2,13 +2,97 @@ const http = require('http');
 const os = require('os');
 const path = require('path');
 const fs = require('fs');
+require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 const express = require('express');
 const { Server } = require('socket.io');
 const FtpSrv = require('ftp-srv');
 const sharp = require('sharp');
+const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+const { Pool } = require('pg');
 
 const HTTP_PORT = Number(process.env.PORT || 3001);
 const FTP_PORT = Number(process.env.FTP_PORT || 2121);
+
+// Cloud Database (Neon) Connection
+let dbPool = null;
+if (process.env.DATABASE_URL) {
+  dbPool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false },
+  });
+  dbPool.query('SELECT NOW()').then(() => {
+    console.log('[LIVE-CAMERA] Connected to Neon Cloud PostgreSQL');
+  }).catch((err) => {
+    console.warn('[LIVE-CAMERA] PostgreSQL connection notice:', err.message);
+  });
+}
+
+// Cloud Storage (Cloudflare R2) Client
+let s3Client = null;
+if (process.env.R2_ACCESS_KEY_ID && process.env.R2_SECRET_ACCESS_KEY) {
+  const accountId = process.env.R2_ACCOUNT_ID || '8b46f97e1b2c60db108af041e28fda0e';
+  s3Client = new S3Client({
+    region: 'auto',
+    endpoint: process.env.R2_ENDPOINT || `https://${accountId}.r2.cloudflarestorage.com`,
+    forcePathStyle: true,
+    credentials: {
+      accessKeyId: process.env.R2_ACCESS_KEY_ID,
+      secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+    },
+  });
+  console.log('[LIVE-CAMERA] Cloudflare R2 Client initialized');
+}
+
+async function uploadToR2(fileKey, filePath, contentType) {
+  if (!s3Client) return null;
+  const bucketName = process.env.R2_BUCKET_NAME || 'sava-live-gallery';
+  const fileBuffer = fs.readFileSync(filePath);
+  await s3Client.send(
+    new PutObjectCommand({
+      Bucket: bucketName,
+      Key: fileKey,
+      Body: fileBuffer,
+      ContentType: contentType,
+    }),
+  );
+  return fileKey;
+}
+
+async function savePhotoToDatabase(slug, photoData) {
+  if (!dbPool) return null;
+  try {
+    const eventRes = await dbPool.query('SELECT id FROM events WHERE slug = $1 LIMIT 1', [slug]);
+    if (!eventRes.rows.length) return null;
+    const eventId = eventRes.rows[0].id;
+
+    const res = await dbPool.query(
+      `
+      INSERT INTO photos (
+        event_id, source, guest_name, url, thumbnail_url,
+        file_key, file_size, status, created_at
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+      RETURNING *
+    `,
+      [
+        eventId,
+        'photographer',
+        null,
+        photoData.url,
+        photoData.thumbnail_url,
+        photoData.file_key || null,
+        photoData.file_size || 0,
+        'approved',
+      ],
+    );
+
+    await dbPool.query('UPDATE events SET ftp_last_upload_at = NOW(), ftp_last_connected_at = NOW() WHERE id = $1', [eventId]);
+    return res.rows[0];
+  } catch (err) {
+    console.error('[LIVE-CAMERA] Database save notice:', err.message);
+    return null;
+  }
+}
 
 const TEMP_FTP_ROOT = path.resolve(__dirname, 'temp-ftp');
 const UPLOADS_ROOT = path.resolve(__dirname, 'public-uploads');
@@ -179,18 +263,44 @@ async function processIncomingCameraFile(slug, filePath) {
         // Ignore unlink error if locked
       }
 
+      const r2FullKey = `events/${slug}/photographer/${fullFilename}`;
+      const r2ThumbKey = `events/${slug}/photographer/${thumbFilename}`;
+
+      let cloudUrl = null;
+      let cloudThumbUrl = null;
+
+      try {
+        await Promise.all([
+          uploadToR2(r2FullKey, fullPath, 'image/jpeg'),
+          uploadToR2(r2ThumbKey, thumbPath, 'image/webp'),
+        ]);
+        const cdnBase = (process.env.CDN_BASE_URL || 'https://pub-0cded6573cff41058ef608531431b6ce.r2.dev').replace(/\/+$/, '');
+        if (!cdnBase.includes('.r2.dev')) {
+          cloudUrl = `${cdnBase}/${r2FullKey}`;
+          cloudThumbUrl = `${cdnBase}/${r2ThumbKey}`;
+        } else {
+          cloudUrl = `https://sava-app.cloud/v1/photos/asset/${r2FullKey}`;
+          cloudThumbUrl = `https://sava-app.cloud/v1/photos/asset/${r2ThumbKey}`;
+        }
+        console.log(`[LIVE-CAMERA] Uploaded camera shot to Cloudflare R2: ${r2FullKey}`);
+      } catch (uploadErr) {
+        console.warn('[LIVE-CAMERA] R2 background upload deferred:', uploadErr.message);
+      }
+
       const localIp = getLocalIpAddress();
       const photoItem = {
         id: `ftp-${baseId}`,
-        url: `http://localhost:${HTTP_PORT}/uploads/${encodeURIComponent(slug)}/${fullFilename}`,
-        thumbnail_url: `http://localhost:${HTTP_PORT}/uploads/${encodeURIComponent(slug)}/${thumbFilename}`,
+        url: cloudUrl || `http://localhost:${HTTP_PORT}/uploads/${encodeURIComponent(slug)}/${fullFilename}`,
+        thumbnail_url: cloudThumbUrl || `http://localhost:${HTTP_PORT}/uploads/${encodeURIComponent(slug)}/${thumbFilename}`,
         lan_url: `http://${localIp}:${HTTP_PORT}/uploads/${encodeURIComponent(slug)}/${fullFilename}`,
+        file_key: r2FullKey,
         source: 'photographer',
         guest_name: null,
         status: 'approved',
         created_at: new Date().toISOString(),
       };
 
+      await savePhotoToDatabase(slug, photoItem);
       recordAndBroadcastPhoto(slug, photoItem);
     } catch (err) {
       console.error(
