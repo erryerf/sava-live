@@ -21,3 +21,4 @@ services:
     volumes:
       - ./temp-ftp:/app/temp-ftp
       - ./public-uploads:/app/public-uploads
+

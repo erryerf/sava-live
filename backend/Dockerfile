@@ -29,3 +29,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD curl -f http://localhost:3001/v1/bridge-status || exit 1
 
 CMD ["node", "live-camera-server.js"]
+

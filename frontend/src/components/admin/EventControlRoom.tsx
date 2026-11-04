@@ -47,6 +47,7 @@ import {
   uploadFileToPresignedUrl,
 } from '@/lib/api';
 import { createEventSocket } from '@/lib/socket';
+import { compressImageUnder2MB } from '@/lib/image-compress';
 import { AdminEvent, PhotoItem, PhotoSource } from '@/lib/types';
 import {
   DEMO_ADMIN_PHOTOS,
@@ -214,36 +215,13 @@ export default function EventControlRoom({
   ]);
 
   const processSinglePhotographerFile = async (file: File) => {
+    // Compress under 2MB while keeping 2.5K high resolution for live wall & prints
+    const optimizedFile = await compressImageUnder2MB(file);
     const dataUrl = await new Promise<string>((resolve, reject) => {
-      const img = new Image();
-      const objUrl = URL.createObjectURL(file);
-      img.onload = () => {
-        const maxDim = 1600;
-        let w = img.width;
-        let h = img.height;
-        if (w > maxDim || h > maxDim) {
-          if (w > h) {
-            h = Math.round((h * maxDim) / w);
-            w = maxDim;
-          } else {
-            w = Math.round((w * maxDim) / h);
-            h = maxDim;
-          }
-        }
-        const canvas = document.createElement('canvas');
-        canvas.width = w;
-        canvas.height = h;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, w, h);
-          resolve(canvas.toDataURL('image/jpeg', 0.86));
-        } else {
-          resolve(objUrl);
-        }
-        URL.revokeObjectURL(objUrl);
-      };
-      img.onerror = reject;
-      img.src = objUrl;
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(optimizedFile);
     });
 
     const newPhoto: PhotoItem = {
@@ -261,12 +239,12 @@ export default function EventControlRoom({
     if (!isDemoMode) {
       try {
         const presigned = await requestGuestPresignedUrl(selectedEvent.slug, {
-          filename: file.name,
-          content_type: file.type || 'image/jpeg',
+          filename: optimizedFile.name,
+          content_type: optimizedFile.type || 'image/jpeg',
           guest_identifier: `admin_photographer_${Date.now()}`,
           source: 'photographer',
         });
-        await uploadFileToPresignedUrl(presigned.upload_url, file);
+        await uploadFileToPresignedUrl(presigned.upload_url, optimizedFile);
         await confirmGuestPhotoUpload(selectedEvent.slug, {
           file_key: presigned.file_key,
           guest_identifier: `admin_photographer_${Date.now()}`,

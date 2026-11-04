@@ -232,29 +232,46 @@ async function processIncomingCameraFile(slug, filePath) {
 
       const pipeline = sharp(filePath).rotate(); // Auto-orient based on camera EXIF
 
-      // Generate both 600px fast grid thumbnail (~30KB) and 2048px full-res (~220KB) in parallel
-      await Promise.all([
-        pipeline
+      // Optimize full-resolution image: max 2560px 2.5K resolution, strictly under 2MB (max ~1.8MB)
+      const MAX_CAMERA_BYTES = 1.95 * 1024 * 1024;
+      let fullBuffer = await pipeline
+        .clone()
+        .resize({
+          width: 2560,
+          height: 2560,
+          fit: 'inside',
+          withoutEnlargement: true,
+        })
+        .jpeg({ quality: 86, mozjpeg: true })
+        .toBuffer();
+
+      // If extreme detail causes file to exceed 1.95MB, step down compression quality safely
+      if (fullBuffer.length > MAX_CAMERA_BYTES) {
+        fullBuffer = await pipeline
           .clone()
           .resize({
-            width: 2048,
-            height: 2048,
+            width: 2560,
+            height: 2560,
             fit: 'inside',
             withoutEnlargement: true,
           })
-          .jpeg({ quality: 86, mozjpeg: true })
-          .toFile(fullPath),
-        pipeline
-          .clone()
-          .resize({
-            width: 600,
-            height: 600,
-            fit: 'inside',
-            withoutEnlargement: true,
-          })
-          .webp({ quality: 78 })
-          .toFile(thumbPath),
-      ]);
+          .jpeg({ quality: 78, mozjpeg: true })
+          .toBuffer();
+      }
+
+      fs.writeFileSync(fullPath, fullBuffer);
+
+      // Generate 600px fast grid thumbnail (~35KB WebP)
+      await pipeline
+        .clone()
+        .resize({
+          width: 600,
+          height: 600,
+          fit: 'inside',
+          withoutEnlargement: true,
+        })
+        .webp({ quality: 78 })
+        .toFile(thumbPath);
 
       // Delete original temp file after optimization
       try {

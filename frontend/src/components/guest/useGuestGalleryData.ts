@@ -18,6 +18,7 @@ import {
   uploadFileToPresignedUrl,
 } from '@/lib/api';
 import { createEventSocket } from '@/lib/socket';
+import { compressImageUnder2MB } from '@/lib/image-compress';
 import {
   ArchiveStatus,
   PhotoItem,
@@ -407,13 +408,16 @@ export function useGuestGalleryData(slug: string) {
 
     let latestQuota = usedQuota;
     for (const item of capturedQueue) {
+      // Compress under 2MB while preserving 2.5K high-resolution fidelity
+      const optimizedFile = await compressImageUnder2MB(item.file);
+
       const presigned = await requestGuestPresignedUrl(slug, {
-        filename: item.file.name,
-        content_type: item.file.type || 'image/jpeg',
+        filename: optimizedFile.name,
+        content_type: optimizedFile.type || 'image/jpeg',
         guest_identifier: guestIdentifier,
       });
 
-      await uploadFileToPresignedUrl(presigned.upload_url, item.file);
+      await uploadFileToPresignedUrl(presigned.upload_url, optimizedFile);
 
       await confirmGuestPhotoUpload(slug, {
         file_key: presigned.file_key,
