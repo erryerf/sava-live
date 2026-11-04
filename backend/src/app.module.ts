@@ -31,6 +31,10 @@ import { UsersModule } from './users/users.module';
         entities: [User, Event, FtpCredential, Photo],
         synchronize:
           configService.get<string>('DB_SYNCHRONIZE', 'true') === 'true',
+        ssl:
+          configService.get<string>('DB_SSL') === 'true'
+            ? { rejectUnauthorized: false }
+            : false,
       }),
     }),
     BullModule.forRootAsync({
@@ -41,6 +45,8 @@ import { UsersModule } from './users/users.module';
           host: configService.get<string>('REDIS_HOST', 'localhost'),
           port: parseInt(configService.get<string>('REDIS_PORT', '6379'), 10),
           password: configService.get<string>('REDIS_PASSWORD') || undefined,
+          tls:
+            configService.get<string>('REDIS_TLS') === 'true' ? {} : undefined,
         },
       }),
     }),

@@ -111,3 +111,4 @@ export async function ensureDbSchema(): Promise<void> {
     console.error('Failed to initialize DB schema:', err);
   }
 }
+
