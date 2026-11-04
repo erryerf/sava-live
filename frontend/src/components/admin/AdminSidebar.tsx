@@ -1,20 +1,24 @@
 'use client';
 
 import React from 'react';
-import { FolderKanban, Settings, Users } from 'lucide-react';
+import { FolderKanban, LogOut, Settings, Users } from 'lucide-react';
 
 export type AdminNavSection = 'events' | 'users' | 'settings';
 
 interface AdminSidebarProps {
   navSection: AdminNavSection;
   isDemoMode: boolean;
+  adminEmail?: string;
   onSelectNav: (section: AdminNavSection) => void;
+  onLogout?: () => void;
 }
 
 export default function AdminSidebar({
   navSection,
   isDemoMode,
+  adminEmail,
   onSelectNav,
+  onLogout,
 }: AdminSidebarProps) {
   return (
     <aside className="w-64 border-r border-white/10 bg-neutral-900/50 p-5 flex flex-col justify-between shrink-0">
@@ -75,18 +79,37 @@ export default function AdminSidebar({
         </nav>
       </div>
 
-      <div className="p-3.5 rounded-xl bg-neutral-900 border border-white/10 space-y-1.5 text-xs">
-        <div className="font-semibold text-neutral-300">FTP Bridge Server</div>
-        <div className="text-neutral-400 font-mono text-[11px]">
-          Port: 2121 (Pasif 50000-50100)
+      <div className="space-y-3">
+        <div className="p-3.5 rounded-xl bg-neutral-900 border border-white/10 space-y-1.5 text-xs">
+          <div className="font-semibold text-neutral-300">FTP Bridge Server</div>
+          <div className="text-neutral-400 font-mono text-[11px]">
+            Port: 2121 (Pasif 50000-50100)
+          </div>
+          {isDemoMode && (
+            <span className="inline-block px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/20 text-amber-300">
+              Mode Cloud / Lokal Aktif
+            </span>
+          )}
         </div>
-        {isDemoMode && (
-          <span className="inline-block px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/20 text-amber-300">
-            Pratinjau Demo Aktif
-          </span>
+
+        {onLogout && (
+          <div className="pt-2 border-t border-white/10 space-y-2">
+            {adminEmail && (
+              <div className="px-2 text-[11px] text-neutral-400 truncate">
+                Login: <span className="text-neutral-200 font-semibold">{adminEmail}</span>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={onLogout}
+              className="w-full flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/25 transition"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Keluar (Logout)</span>
+            </button>
+          </div>
         )}
       </div>
     </aside>
   );
 }
-
