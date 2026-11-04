@@ -1,33 +1,47 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { INITIAL_DEMO_ADMIN_EVENTS } from '@/components/admin/demo-data';
-import { DEMO_PHOTOS } from '@/components/guest/guestGalleryConstants';
-import { AdminEvent, PhotoItem } from '@/lib/types';
+import { ensureDbSchema, getDbPool } from '@/lib/db';
+import { AdminEvent, PhotoItem, PublicEvent } from '@/lib/types';
 
-interface ServerStore {
-  events: AdminEvent[];
-  photosBySlug: Record<string, PhotoItem[]>;
-  pendingUploads: Record<string, { slug: string; dataUrl?: string }>;
+function rowToAdminEvent(row: any): AdminEvent {
+  return {
+    id: String(row.id),
+    name: String(row.name),
+    header_subtitle: row.header_subtitle ?? 'The Wedding of',
+    slug: String(row.slug),
+    status: row.status || 'active',
+    theme_color: row.theme_color || '#D4AF37',
+    header_image_url: row.header_image_url || null,
+    guest_upload_limit: Number(row.guest_upload_limit ?? 5),
+    is_upload_allowed: row.status === 'active',
+    start_time: row.start_time ? new Date(row.start_time).toISOString() : new Date().toISOString(),
+    end_time: row.end_time ? new Date(row.end_time).toISOString() : new Date().toISOString(),
+    custom_frame_key: row.custom_frame_key || null,
+    custom_frame_url: row.custom_frame_url || null,
+    require_guest_moderation: Boolean(row.require_guest_moderation),
+    archive_zip_key: row.archive_zip_key || null,
+    archive_download_url: row.archive_download_url || null,
+    archive_status: row.archive_status || 'none',
+    created_at: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
+    updated_at: row.updated_at ? new Date(row.updated_at).toISOString() : new Date().toISOString(),
+    ftp_status: {
+      connected: Boolean(row.ftp_connected),
+      active_sessions: Number(row.ftp_active_sessions ?? 0),
+      last_connected_at: row.ftp_last_connected_at || null,
+      last_upload_at: row.ftp_last_upload_at || null,
+    },
+    ftp_credentials: row.ftp_username
+      ? {
+          id: String(row.ftp_id || row.id),
+          username: String(row.ftp_username),
+          password: String(row.ftp_password || '123456'),
+          is_active: Boolean(row.ftp_is_active ?? true),
+          created_at: row.ftp_created_at || new Date().toISOString(),
+        }
+      : undefined,
+  };
 }
 
-const globalForSava = globalThis as unknown as {
-  __savaServerStore?: ServerStore;
-};
-
-function getStore(): ServerStore {
-  if (!globalForSava.__savaServerStore) {
-    const initialPhotos: Record<string, PhotoItem[]> = {
-      'budi-ani': [...DEMO_PHOTOS.photographer, ...DEMO_PHOTOS.guest],
-    };
-    globalForSava.__savaServerStore = {
-      events: [...INITIAL_DEMO_ADMIN_EVENTS],
-      photosBySlug: initialPhotos,
-      pendingUploads: {},
-    };
-  }
-  return globalForSava.__savaServerStore;
-}
-
-function toPublicEvent(evt: AdminEvent) {
+function toPublicEvent(evt: AdminEvent): PublicEvent {
   return {
     id: evt.id,
     name: evt.name,
@@ -36,7 +50,6 @@ function toPublicEvent(evt: AdminEvent) {
     status: evt.status,
     theme_color: evt.theme_color,
     header_image_url: evt.header_image_url ?? null,
-    custom_frame_url: evt.custom_frame_url ?? null,
     guest_upload_limit: Number(evt.guest_upload_limit ?? 5),
     is_upload_allowed: evt.status === 'active',
   };
@@ -46,433 +59,405 @@ export async function GET(
   req: NextRequest,
   context: { params: Promise<{ path: string[] }> },
 ) {
+  await ensureDbSchema();
+  const db = getDbPool();
   const { path } = await context.params;
-  const store = getStore();
   const url = new URL(req.url);
 
-  // GET /v1/admin/events
-  if (path.length === 2 && path[0] === 'admin' && path[1] === 'events') {
-    const status = url.searchParams.get('status');
-    const data = status
-      ? store.events.filter((e) => e.status === status)
-      : store.events;
-    return NextResponse.json({ success: true, data });
-  }
+  try {
+    // GET /v1/admin/events
+    if (path.length === 2 && path[0] === 'admin' && path[1] === 'events') {
+      const status = url.searchParams.get('status');
+      const query = status
+        ? `
+          SELECT e.*, f.id as ftp_id, f.username as ftp_username, f.password as ftp_password, f.is_active as ftp_is_active
+          FROM events e
+          LEFT JOIN ftp_credentials f ON f.event_id = e.id
+          WHERE e.status = $1
+          ORDER BY e.created_at DESC
+        `
+        : `
+          SELECT e.*, f.id as ftp_id, f.username as ftp_username, f.password as ftp_password, f.is_active as ftp_is_active
+          FROM events e
+          LEFT JOIN ftp_credentials f ON f.event_id = e.id
+          ORDER BY e.created_at DESC
+        `;
+      const res = status ? await db.query(query, [status]) : await db.query(query);
+      const data = res.rows.map(rowToAdminEvent);
+      return NextResponse.json({ success: true, data });
+    }
 
-  // GET /v1/admin/events/:id
-  if (path.length === 3 && path[0] === 'admin' && path[1] === 'events') {
-    const evt = store.events.find((e) => e.id === path[2]);
-    if (!evt) {
-      return NextResponse.json(
-        { success: false, message: 'Event tidak ditemukan.' },
-        { status: 404 },
+    // GET /v1/admin/events/:id
+    if (path.length === 3 && path[0] === 'admin' && path[1] === 'events') {
+      const res = await db.query(
+        `
+        SELECT e.*, f.id as ftp_id, f.username as ftp_username, f.password as ftp_password, f.is_active as ftp_is_active
+        FROM events e
+        LEFT JOIN ftp_credentials f ON f.event_id = e.id
+        WHERE e.id = $1 OR e.slug = $1
+        LIMIT 1
+      `,
+        [path[2]],
       );
+      if (res.rows.length === 0) {
+        return NextResponse.json({ success: false, message: 'Event tidak ditemukan.' }, { status: 404 });
+      }
+      return NextResponse.json({ success: true, data: rowToAdminEvent(res.rows[0]) });
     }
-    return NextResponse.json({ success: true, data: evt });
-  }
 
-  // GET /v1/admin/events/:id/photos
-  if (
-    path.length === 4 &&
-    path[0] === 'admin' &&
-    path[1] === 'events' &&
-    path[3] === 'photos'
-  ) {
-    const evt = store.events.find((e) => e.id === path[2]);
-    if (!evt) {
-      return NextResponse.json({ success: true, data: [] });
+    // GET /v1/admin/events/:id/photos
+    if (path.length === 4 && path[0] === 'admin' && path[1] === 'events' && path[3] === 'photos') {
+      const evtRes = await db.query('SELECT slug FROM events WHERE id = $1 OR slug = $1 LIMIT 1', [path[2]]);
+      if (evtRes.rows.length === 0) {
+        return NextResponse.json({ success: true, data: [] });
+      }
+      const slug = evtRes.rows[0].slug;
+      const photosRes = await db.query('SELECT * FROM photos WHERE LOWER(event_slug) = LOWER($1) ORDER BY created_at DESC', [slug]);
+      return NextResponse.json({ success: true, data: photosRes.rows });
     }
-    const list = store.photosBySlug[evt.slug] || [];
-    return NextResponse.json({ success: true, data: list });
-  }
 
-  // GET /v1/events/:slug
-  if (path.length === 2 && path[0] === 'events') {
-    const slug = decodeURIComponent(path[1]).toLowerCase();
-    const evt = store.events.find((e) => e.slug.toLowerCase() === slug);
-    if (!evt) {
-      return NextResponse.json(
-        { success: false, message: 'Acara tidak ditemukan.' },
-        { status: 404 },
+    // GET /v1/events/:slug
+    if (path.length === 2 && path[0] === 'events') {
+      const slug = decodeURIComponent(path[1]).toLowerCase();
+      const res = await db.query(
+        `
+        SELECT e.*, f.id as ftp_id, f.username as ftp_username, f.password as ftp_password, f.is_active as ftp_is_active
+        FROM events e
+        LEFT JOIN ftp_credentials f ON f.event_id = e.id
+        WHERE LOWER(e.slug) = LOWER($1)
+        LIMIT 1
+      `,
+        [slug],
       );
+      if (res.rows.length === 0) {
+        return NextResponse.json({ success: false, message: 'Acara tidak ditemukan.' }, { status: 404 });
+      }
+      const adminEvt = rowToAdminEvent(res.rows[0]);
+      return NextResponse.json({ success: true, data: toPublicEvent(adminEvt) });
     }
-    return NextResponse.json({ success: true, data: toPublicEvent(evt) });
-  }
 
-  // GET /v1/events/:slug/photos
-  if (path.length === 3 && path[0] === 'events' && path[2] === 'photos') {
-    const slug = decodeURIComponent(path[1]).toLowerCase();
-    const source = url.searchParams.get('source');
-    const allPhotos = store.photosBySlug[slug] || [];
-    const filtered = allPhotos.filter(
-      (p) =>
-        p.status !== 'rejected' &&
-        p.status !== 'pending' &&
-        (!source || p.source === source),
-    );
-    return NextResponse.json({
-      success: true,
-      meta: { next_cursor: null, has_more: false },
-      data: filtered,
-    });
-  }
+    // GET /v1/events/:slug/photos
+    if (path.length === 3 && path[0] === 'events' && path[2] === 'photos') {
+      const slug = decodeURIComponent(path[1]).toLowerCase();
+      const source = url.searchParams.get('source');
+      const query = source
+        ? "SELECT * FROM photos WHERE LOWER(event_slug) = LOWER($1) AND source = $2 AND status != 'rejected' ORDER BY created_at DESC"
+        : "SELECT * FROM photos WHERE LOWER(event_slug) = LOWER($1) AND status != 'rejected' ORDER BY created_at DESC";
+      const res = source ? await db.query(query, [slug, source]) : await db.query(query, [slug]);
+      return NextResponse.json({
+        success: true,
+        meta: { next_cursor: null, has_more: false },
+        data: res.rows,
+      });
+    }
 
-  // GET /v1/events/:slug/archive
-  if (path.length === 3 && path[0] === 'events' && path[2] === 'archive') {
-    const slug = decodeURIComponent(path[1]).toLowerCase();
-    const evt = store.events.find((e) => e.slug.toLowerCase() === slug);
-    return NextResponse.json({
-      success: true,
-      data: {
-        status: evt?.archive_status || 'ready',
-        download_url:
-          evt?.archive_download_url ||
-          `https://sava-app.cloud/v1/events/${slug}/archive-download`,
-      },
-    });
-  }
+    // GET /v1/events/:slug/archive
+    if (path.length === 3 && path[0] === 'events' && path[2] === 'archive') {
+      const slug = decodeURIComponent(path[1]).toLowerCase();
+      const res = await db.query('SELECT archive_status, archive_download_url FROM events WHERE LOWER(slug) = LOWER($1) LIMIT 1', [slug]);
+      return NextResponse.json({
+        success: true,
+        data: {
+          status: res.rows[0]?.archive_status || 'ready',
+          download_url: res.rows[0]?.archive_download_url || `https://sava-app.cloud/v1/events/${slug}/archive`,
+        },
+      });
+    }
 
-  return NextResponse.json(
-    { success: false, message: 'Endpoint tidak ditemukan.' },
-    { status: 404 },
-  );
+    return NextResponse.json({ success: false, message: 'Endpoint tidak ditemukan.' }, { status: 404 });
+  } catch (err) {
+    console.error('API GET error:', err);
+    return NextResponse.json({ success: false, message: (err as Error).message }, { status: 500 });
+  }
 }
 
 export async function POST(
   req: NextRequest,
   context: { params: Promise<{ path: string[] }> },
 ) {
+  await ensureDbSchema();
+  const db = getDbPool();
   const { path } = await context.params;
-  const store = getStore();
   const body = await req.json().catch(() => ({}));
 
-  // POST /v1/admin/events/sync (sync client localStorage events to server)
-  if (
-    path.length === 3 &&
-    path[0] === 'admin' &&
-    path[1] === 'events' &&
-    path[2] === 'sync'
-  ) {
-    const clientEvents = Array.isArray(body.events)
-      ? (body.events as AdminEvent[])
-      : [];
-    for (const item of clientEvents) {
-      if (!item?.slug) continue;
-      const idx = store.events.findIndex(
-        (e) =>
-          e.id === item.id || e.slug.toLowerCase() === item.slug.toLowerCase(),
-      );
-      if (idx >= 0) {
-        store.events[idx] = {
-          ...store.events[idx],
-          ...item,
-          guest_upload_limit: Number(
-            item.guest_upload_limit ?? store.events[idx].guest_upload_limit ?? 5,
-          ),
-        };
-      } else {
-        store.events.unshift({
-          ...item,
-          guest_upload_limit: Number(item.guest_upload_limit ?? 5),
-        });
+  try {
+    // POST /v1/admin/events/sync (Sync localStorage demo events to Neon PostgreSQL)
+    if (path.length === 3 && path[0] === 'admin' && path[1] === 'events' && path[2] === 'sync') {
+      const clientEvents = Array.isArray(body.events) ? (body.events as AdminEvent[]) : [];
+      for (const item of clientEvents) {
+        if (!item?.slug) continue;
+        const slug = item.slug.toLowerCase().trim();
+        const id = item.id || `evt-${Date.now()}`;
+        const limit = Number(item.guest_upload_limit ?? 5);
+
+        await db.query(
+          `
+          INSERT INTO events (
+            id, slug, name, header_subtitle, start_time, end_time, status,
+            theme_color, header_image_url, guest_upload_limit, require_guest_moderation
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          ON CONFLICT (slug) DO UPDATE SET
+            name = EXCLUDED.name,
+            header_subtitle = EXCLUDED.header_subtitle,
+            theme_color = EXCLUDED.theme_color,
+            header_image_url = COALESCE(EXCLUDED.header_image_url, events.header_image_url),
+            guest_upload_limit = EXCLUDED.guest_upload_limit,
+            status = EXCLUDED.status,
+            require_guest_moderation = EXCLUDED.require_guest_moderation,
+            updated_at = NOW();
+        `,
+          [
+            id,
+            slug,
+            item.name,
+            item.header_subtitle ?? 'The Wedding of',
+            item.start_time || new Date().toISOString(),
+            item.end_time || new Date(Date.now() + 21600000).toISOString(),
+            item.status || 'active',
+            item.theme_color || '#D4AF37',
+            item.header_image_url || null,
+            limit,
+            Boolean(item.require_guest_moderation),
+          ],
+        );
+
+        await db.query(
+          `
+          INSERT INTO ftp_credentials (id, event_id, username, password, is_active)
+          VALUES ($1, $2, $3, $4, $5)
+          ON CONFLICT (username) DO UPDATE SET is_active = EXCLUDED.is_active;
+        `,
+          [`ftp-${slug}`, id, slug, item.ftp_credentials?.password || '123456', true],
+        );
       }
+
+      const allRes = await db.query(`
+        SELECT e.*, f.id as ftp_id, f.username as ftp_username, f.password as ftp_password, f.is_active as ftp_is_active
+        FROM events e
+        LEFT JOIN ftp_credentials f ON f.event_id = e.id
+        ORDER BY e.created_at DESC
+      `);
+      return NextResponse.json({ success: true, data: allRes.rows.map(rowToAdminEvent) });
     }
-    return NextResponse.json({ success: true, data: store.events });
-  }
 
-  // POST /v1/admin/events
-  if (path.length === 2 && path[0] === 'admin' && path[1] === 'events') {
-    const slug = (
-      body.slug ||
-      String(body.name || 'acara')
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-|-$/g, '')
-    ).toLowerCase();
+    // POST /v1/admin/events
+    if (path.length === 2 && path[0] === 'admin' && path[1] === 'events') {
+      const slug = (
+        body.slug ||
+        String(body.name || 'acara')
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-|-$/g, '')
+      ).toLowerCase();
+      const id = `evt-${Date.now()}`;
+      const limit = Number(body.guest_upload_limit ?? 5);
 
-    const newEvent: AdminEvent = {
-      id: `evt-${Date.now()}`,
-      name: String(body.name || 'Acara Baru'),
-      header_subtitle: body.header_subtitle ?? 'The Wedding of',
-      slug,
-      status: body.status || 'active',
-      theme_color: body.theme_color || '#D4AF37',
-      header_image_url: body.header_image_url || null,
-      guest_upload_limit: Number(body.guest_upload_limit ?? 5),
-      is_upload_allowed: (body.status || 'active') === 'active',
-      start_time: body.start_time || new Date().toISOString(),
-      end_time: body.end_time || new Date(Date.now() + 21600000).toISOString(),
-      custom_frame_key: body.custom_frame_key || null,
-      custom_frame_url: null,
-      require_guest_moderation: Boolean(body.require_guest_moderation),
-      archive_zip_key: null,
-      archive_download_url: null,
-      archive_status: 'none',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      ftp_status: {
-        connected: false,
-        active_sessions: 0,
-        last_connected_at: null,
-        last_upload_at: null,
-      },
-      ftp_credentials: {
-        id: `ftp-${Date.now()}`,
-        username: slug,
-        password: Math.random().toString(36).slice(2, 10),
-        is_active: true,
-        created_at: new Date().toISOString(),
-      },
-    };
+      await db.query(
+        `
+        INSERT INTO events (
+          id, slug, name, header_subtitle, start_time, end_time, status,
+          theme_color, header_image_url, guest_upload_limit, require_guest_moderation
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        ON CONFLICT (slug) DO UPDATE SET
+          name = EXCLUDED.name,
+          header_subtitle = EXCLUDED.header_subtitle,
+          theme_color = EXCLUDED.theme_color,
+          header_image_url = COALESCE(EXCLUDED.header_image_url, events.header_image_url),
+          guest_upload_limit = EXCLUDED.guest_upload_limit,
+          status = EXCLUDED.status,
+          require_guest_moderation = EXCLUDED.require_guest_moderation,
+          updated_at = NOW();
+      `,
+        [
+          id,
+          slug,
+          body.name,
+          body.header_subtitle ?? 'The Wedding of',
+          body.start_time || new Date().toISOString(),
+          body.end_time || new Date(Date.now() + 21600000).toISOString(),
+          body.status || 'active',
+          body.theme_color || '#D4AF37',
+          body.header_image_url || null,
+          limit,
+          Boolean(body.require_guest_moderation),
+        ],
+      );
 
-    const existingIdx = store.events.findIndex(
-      (e) => e.slug.toLowerCase() === slug,
-    );
-    if (existingIdx >= 0) {
-      store.events[existingIdx] = newEvent;
-    } else {
-      store.events.unshift(newEvent);
+      const ftpPassword = Math.random().toString(36).slice(2, 10);
+      await db.query(
+        `
+        INSERT INTO ftp_credentials (id, event_id, username, password, is_active)
+        VALUES ($1, $2, $3, $4, $5)
+        ON CONFLICT (username) DO NOTHING;
+      `,
+        [`ftp-${slug}`, id, slug, ftpPassword, true],
+      );
+
+      const createdRes = await db.query(
+        `
+        SELECT e.*, f.id as ftp_id, f.username as ftp_username, f.password as ftp_password, f.is_active as ftp_is_active
+        FROM events e
+        LEFT JOIN ftp_credentials f ON f.event_id = e.id
+        WHERE e.id = $1
+        LIMIT 1
+      `,
+        [id],
+      );
+      return NextResponse.json({ success: true, data: rowToAdminEvent(createdRes.rows[0]) }, { status: 201 });
     }
-    return NextResponse.json({ success: true, data: newEvent }, { status: 201 });
-  }
 
-  // POST /v1/admin/events/:id/ftp-password/reset
-  if (
-    path.length === 5 &&
-    path[0] === 'admin' &&
-    path[1] === 'events' &&
-    path[3] === 'ftp-password' &&
-    path[4] === 'reset'
-  ) {
-    const evt = store.events.find((e) => e.id === path[2]);
-    const newPassword = Math.random().toString(36).slice(2, 10);
-    if (evt && evt.ftp_credentials) {
-      evt.ftp_credentials.password = newPassword;
+    // POST /v1/events/:slug/photos/presigned-url
+    if (path.length === 4 && path[0] === 'events' && path[2] === 'photos' && path[3] === 'presigned-url') {
+      const slug = decodeURIComponent(path[1]).toLowerCase();
+      const fileKey = `events/${slug}/guest/${Date.now()}-${Math.random().toString(36).slice(2, 7)}.jpg`;
+      const origin = new URL(req.url).origin;
+      return NextResponse.json({
+        success: true,
+        data: {
+          upload_url: `${origin}/v1/upload-target?key=${encodeURIComponent(fileKey)}`,
+          file_key: fileKey,
+          expires_in: 300,
+        },
+      });
     }
-    return NextResponse.json({
-      success: true,
-      data: {
-        username: evt?.slug || 'event',
-        password: newPassword,
-        is_active: true,
-      },
-    });
-  }
 
-  // POST /v1/admin/events/:id/archive
-  if (
-    path.length === 4 &&
-    path[0] === 'admin' &&
-    path[1] === 'events' &&
-    path[3] === 'archive'
-  ) {
-    const evt = store.events.find((e) => e.id === path[2]);
-    if (evt) {
-      evt.archive_status = 'ready';
-      evt.archive_download_url = `https://sava-app.cloud/v1/events/${evt.slug}/archive`;
-    }
-    return NextResponse.json({
-      success: true,
-      message: 'Arsip ZIP berhasil disiapkan.',
-    });
-  }
-
-  // POST /v1/events/:slug/photos/presigned-url
-  if (
-    path.length === 4 &&
-    path[0] === 'events' &&
-    path[2] === 'photos' &&
-    path[3] === 'presigned-url'
-  ) {
-    const slug = decodeURIComponent(path[1]).toLowerCase();
-    const fileKey = `events/${slug}/guest/${Date.now()}-${Math.random().toString(36).slice(2, 7)}.jpg`;
-    const origin = new URL(req.url).origin;
-    store.pendingUploads[fileKey] = { slug };
-    return NextResponse.json({
-      success: true,
-      data: {
-        upload_url: `${origin}/v1/upload-target?key=${encodeURIComponent(fileKey)}`,
-        file_key: fileKey,
-        expires_in: 300,
-      },
-    });
-  }
-
-  // POST /v1/events/:slug/photos/confirm
-  if (
-    path.length === 4 &&
-    path[0] === 'events' &&
-    path[2] === 'photos' &&
-    path[3] === 'confirm'
-  ) {
-    const slug = decodeURIComponent(path[1]).toLowerCase();
-    const fileKey = String(body.file_key || '');
-    const pending = store.pendingUploads[fileKey];
-    const evt = store.events.find((e) => e.slug.toLowerCase() === slug);
-
-    const newPhoto: PhotoItem = {
-      id: `photo-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      url:
-        pending?.dataUrl ||
+    // POST /v1/events/:slug/photos/confirm
+    if (path.length === 4 && path[0] === 'events' && path[2] === 'photos' && path[3] === 'confirm') {
+      const slug = decodeURIComponent(path[1]).toLowerCase();
+      const photoId = `photo-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      const url =
         body.data_url ||
-        'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=900&q=85',
-      source: String(body.guest_identifier || '').startsWith(
-        'admin_photographer_',
-      )
+        `https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=900&q=85`;
+      const source = String(body.guest_identifier || '').startsWith('admin_photographer_')
         ? 'photographer'
-        : 'guest',
-      guest_name: body.guest_name || null,
-      status: evt?.require_guest_moderation ? 'pending' : 'approved',
-      created_at: new Date().toISOString(),
-    };
+        : 'guest';
 
-    if (!store.photosBySlug[slug]) {
-      store.photosBySlug[slug] = [];
-    }
-    store.photosBySlug[slug].unshift(newPhoto);
-    delete store.pendingUploads[fileKey];
+      await db.query(
+        `
+        INSERT INTO photos (id, event_slug, url, thumbnail_url, source, guest_identifier, guest_name, status)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `,
+        [
+          photoId,
+          slug,
+          url,
+          url,
+          source,
+          body.guest_identifier || null,
+          body.guest_name || null,
+          'approved',
+        ],
+      );
 
-    return NextResponse.json({
-      success: true,
-      message: 'Foto berhasil disimpan.',
-      data: newPhoto,
-    });
-  }
-
-  return NextResponse.json({ success: true, data: {} });
-}
-
-export async function PUT(
-  req: NextRequest,
-  context: { params: Promise<{ path: string[] }> },
-) {
-  const { path } = await context.params;
-  const store = getStore();
-  const url = new URL(req.url);
-
-  // PUT /v1/upload-target?key=...
-  if (path.length === 1 && path[0] === 'upload-target') {
-    const fileKey = url.searchParams.get('key') || '';
-    const arrayBuffer = await req.arrayBuffer();
-    const contentType = req.headers.get('content-type') || 'image/jpeg';
-    const base64 = Buffer.from(arrayBuffer).toString('base64');
-    const dataUrl = `data:${contentType};base64,${base64}`;
-    if (fileKey) {
-      store.pendingUploads[fileKey] = {
-        slug: store.pendingUploads[fileKey]?.slug || '',
-        dataUrl,
+      const savedPhoto: PhotoItem = {
+        id: photoId,
+        url,
+        thumbnail_url: url,
+        source: source as 'photographer' | 'guest',
+        guest_name: body.guest_name || null,
+        created_at: new Date().toISOString(),
       };
+      return NextResponse.json({ success: true, message: 'Foto berhasil disimpan.', data: savedPhoto });
     }
-    return new NextResponse(null, { status: 200 });
-  }
 
-  return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, data: {} });
+  } catch (err) {
+    console.error('API POST error:', err);
+    return NextResponse.json({ success: false, message: (err as Error).message }, { status: 500 });
+  }
 }
 
 export async function PATCH(
   req: NextRequest,
   context: { params: Promise<{ path: string[] }> },
 ) {
+  await ensureDbSchema();
+  const db = getDbPool();
   const { path } = await context.params;
-  const store = getStore();
   const body = await req.json().catch(() => ({}));
 
-  // PATCH /v1/admin/events/:id
-  if (path.length === 3 && path[0] === 'admin' && path[1] === 'events') {
-    const idx = store.events.findIndex(
-      (e) => e.id === path[2] || e.slug === body.slug,
-    );
-    if (idx === -1) {
-      return NextResponse.json(
-        { success: false, message: 'Event tidak ditemukan.' },
-        { status: 404 },
+  try {
+    // PATCH /v1/admin/events/:id
+    if (path.length === 3 && path[0] === 'admin' && path[1] === 'events') {
+      const id = path[2];
+      await db.query(
+        `
+        UPDATE events SET
+          name = COALESCE($1, name),
+          header_subtitle = COALESCE($2, header_subtitle),
+          slug = COALESCE($3, slug),
+          status = COALESCE($4, status),
+          theme_color = COALESCE($5, theme_color),
+          guest_upload_limit = COALESCE($6, guest_upload_limit),
+          require_guest_moderation = COALESCE($7, require_guest_moderation),
+          header_image_url = COALESCE($8, header_image_url),
+          updated_at = NOW()
+        WHERE id = $9 OR slug = $9
+      `,
+        [
+          body.name,
+          body.header_subtitle,
+          body.slug,
+          body.status,
+          body.theme_color,
+          body.guest_upload_limit !== undefined ? Number(body.guest_upload_limit) : null,
+          body.require_guest_moderation !== undefined ? Boolean(body.require_guest_moderation) : null,
+          body.header_image_url,
+          id,
+        ],
       );
-    }
 
-    const updated: AdminEvent = {
-      ...store.events[idx],
-      ...body,
-      guest_upload_limit:
-        body.guest_upload_limit !== undefined
-          ? Number(body.guest_upload_limit)
-          : store.events[idx].guest_upload_limit,
-      is_upload_allowed:
-        (body.status || store.events[idx].status) === 'active',
-      updated_at: new Date().toISOString(),
-    };
-    store.events[idx] = updated;
-    return NextResponse.json({ success: true, data: updated });
-  }
-
-  // PATCH /v1/admin/events/:id/status
-  if (
-    path.length === 4 &&
-    path[0] === 'admin' &&
-    path[1] === 'events' &&
-    path[3] === 'status'
-  ) {
-    const evt = store.events.find((e) => e.id === path[2]);
-    if (!evt) {
-      return NextResponse.json(
-        { success: false, message: 'Event tidak ditemukan.' },
-        { status: 404 },
+      const updatedRes = await db.query(
+        `
+        SELECT e.*, f.id as ftp_id, f.username as ftp_username, f.password as ftp_password, f.is_active as ftp_is_active
+        FROM events e
+        LEFT JOIN ftp_credentials f ON f.event_id = e.id
+        WHERE e.id = $1 OR e.slug = $1
+        LIMIT 1
+      `,
+        [id],
       );
+      return NextResponse.json({ success: true, data: rowToAdminEvent(updatedRes.rows[0]) });
     }
-    evt.status = body.status;
-    evt.is_upload_allowed = body.status === 'active';
-    return NextResponse.json({ success: true, data: evt });
-  }
 
-  // PATCH /v1/admin/events/:id/photos/:photoId/status
-  if (
-    path.length === 6 &&
-    path[0] === 'admin' &&
-    path[1] === 'events' &&
-    path[3] === 'photos' &&
-    path[5] === 'status'
-  ) {
-    const evt = store.events.find((e) => e.id === path[2]);
-    if (evt && store.photosBySlug[evt.slug]) {
-      const photo = store.photosBySlug[evt.slug].find((p) => p.id === path[4]);
-      if (photo) {
-        photo.status = body.status;
-        return NextResponse.json({ success: true, data: photo });
-      }
+    // PATCH /v1/admin/events/:id/status
+    if (path.length === 4 && path[0] === 'admin' && path[1] === 'events' && path[3] === 'status') {
+      const id = path[2];
+      await db.query('UPDATE events SET status = $1, updated_at = NOW() WHERE id = $2 OR slug = $2', [body.status, id]);
+      return NextResponse.json({ success: true });
     }
+
     return NextResponse.json({ success: true, data: {} });
+  } catch (err) {
+    console.error('API PATCH error:', err);
+    return NextResponse.json({ success: false, message: (err as Error).message }, { status: 500 });
   }
-
-  return NextResponse.json({ success: true, data: {} });
 }
 
 export async function DELETE(
   _req: NextRequest,
   context: { params: Promise<{ path: string[] }> },
 ) {
+  await ensureDbSchema();
+  const db = getDbPool();
   const { path } = await context.params;
-  const store = getStore();
 
-  // DELETE /v1/admin/events/:id
-  if (path.length === 3 && path[0] === 'admin' && path[1] === 'events') {
-    store.events = store.events.filter((e) => e.id !== path[2]);
-    return NextResponse.json({ success: true });
-  }
-
-  // DELETE /v1/admin/events/:id/photos/:photoId
-  if (
-    path.length === 5 &&
-    path[0] === 'admin' &&
-    path[1] === 'events' &&
-    path[3] === 'photos'
-  ) {
-    const evt = store.events.find((e) => e.id === path[2]);
-    if (evt && store.photosBySlug[evt.slug]) {
-      store.photosBySlug[evt.slug] = store.photosBySlug[evt.slug].filter(
-        (p) => p.id !== path[4],
-      );
+  try {
+    // DELETE /v1/admin/events/:id
+    if (path.length === 3 && path[0] === 'admin' && path[1] === 'events') {
+      await db.query('DELETE FROM events WHERE id = $1 OR slug = $1', [path[2]]);
+      return NextResponse.json({ success: true });
     }
-    return NextResponse.json({ success: true });
-  }
 
-  return NextResponse.json({ success: true });
+    // DELETE /v1/admin/events/:id/photos/:photoId
+    if (path.length === 5 && path[0] === 'admin' && path[1] === 'events' && path[3] === 'photos') {
+      await db.query('DELETE FROM photos WHERE id = $1', [path[4]]);
+      return NextResponse.json({ success: true });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error('API DELETE error:', err);
+    return NextResponse.json({ success: false, message: (err as Error).message }, { status: 500 });
+  }
 }
