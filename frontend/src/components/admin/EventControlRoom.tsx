@@ -264,6 +264,7 @@ export default function EventControlRoom({
           filename: file.name,
           content_type: file.type || 'image/jpeg',
           guest_identifier: `admin_photographer_${Date.now()}`,
+          source: 'photographer',
         });
         await uploadFileToPresignedUrl(presigned.upload_url, file);
         await confirmGuestPhotoUpload(selectedEvent.slug, {
@@ -755,14 +756,38 @@ export default function EventControlRoom({
               </span>
             </button>
 
-            {/* Cadangan: Upload Manual / Pilih Folder Lain */}
-            <div className="pt-2 border-t border-white/[0.07]">
+            {/* Mode Stasiun Tablet / Unggah Cepat dari SD Card / Galeri */}
+            <div className="pt-3 border-t border-white/[0.07] space-y-2">
+              <label className="w-full py-2.5 px-3.5 rounded-md bg-[#181816] hover:bg-[#20201D] active:scale-[0.99] border border-amber-500/30 text-amber-100 text-xs font-medium flex items-center justify-center gap-2 cursor-pointer transition-all shadow-sm">
+                <Upload className="w-4 h-4 text-amber-400" />
+                <span>
+                  {uploadingMainPhotos
+                    ? 'Mengunggah Foto Kamera...'
+                    : 'Unggah Foto Kamera (Mode Tablet / SD Card)'}
+                </span>
+                <input
+                  type="file"
+                  multiple
+                  accept="image/jpeg,image/png,image/webp"
+                  disabled={uploadingMainPhotos}
+                  onChange={(e) => {
+                    void handleMainCameraFilesUpload(e.target.files);
+                    e.target.value = '';
+                  }}
+                  className="hidden"
+                />
+              </label>
+              <p className="text-[10px] text-neutral-400 text-center">
+                Pilih banyak foto langsung dari galeri iPad / Android atau kartu memori kamera.
+              </p>
+
+              {/* Opsi Tambahan untuk Sinkronisasi Folder Laptop jika digunakan */}
               <button
                 type="button"
                 onClick={() => setShowFtpAdvanced((prev) => !prev)}
                 className="w-full flex items-center justify-between text-[11px] font-medium text-neutral-400 hover:text-white py-1"
               >
-                <span>Unggah Manual dari Komputer</span>
+                <span>Opsi Lanjutan Sinkronisasi Folder</span>
                 {showFtpAdvanced ? (
                   <ChevronUp className="w-3.5 h-3.5" />
                 ) : (
@@ -772,26 +797,6 @@ export default function EventControlRoom({
 
               {showFtpAdvanced && (
                 <div className="mt-2 space-y-2">
-                  <label className="w-full py-2 px-3.5 rounded-md bg-[#1A1A18] hover:bg-[#242422] border border-white/[0.07] text-neutral-200 text-xs font-medium flex items-center justify-center gap-2 cursor-pointer transition-colors">
-                    <Upload className="w-3.5 h-3.5 text-neutral-400" />
-                    <span>
-                      {uploadingMainPhotos
-                        ? 'Menayangkan Foto...'
-                        : 'Pilih File Foto Kamera'}
-                    </span>
-                    <input
-                      type="file"
-                      multiple
-                      accept="image/jpeg,image/png,image/webp"
-                      disabled={uploadingMainPhotos}
-                      onChange={(e) => {
-                        void handleMainCameraFilesUpload(e.target.files);
-                        e.target.value = '';
-                      }}
-                      className="hidden"
-                    />
-                  </label>
-
                   <button
                     type="button"
                     onClick={() => void handleToggleFolderSync()}

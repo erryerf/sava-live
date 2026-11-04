@@ -59,6 +59,7 @@ export async function requestGuestPresignedUrl(
     filename: string;
     content_type: string;
     guest_identifier: string;
+    source?: 'photographer' | 'guest';
   },
 ): Promise<PresignedUrlResponse['data']> {
   const res = await fetch(

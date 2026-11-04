@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  ftp-bridge:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sava-ftp-bridge
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "3001:3001"
+      - "2121:2121"
+      - "50000-50050:50000-50050"
+    environment:
+      - PORT=3001
+      - FTP_PORT=2121
+      - FTP_PASV_MIN=50000
+      - FTP_PASV_MAX=50050
+    volumes:
+      - ./temp-ftp:/app/temp-ftp
+      - ./public-uploads:/app/public-uploads

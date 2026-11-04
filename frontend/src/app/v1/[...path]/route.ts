@@ -334,7 +334,8 @@ export async function POST(
     // POST /v1/events/:slug/photos/presigned-url
     if (path.length === 4 && path[0] === 'events' && path[2] === 'photos' && path[3] === 'presigned-url') {
       const slug = decodeURIComponent(path[1]).toLowerCase();
-      const fileKey = `events/${slug}/guest/${Date.now()}-${Math.random().toString(36).slice(2, 7)}.jpg`;
+      const source = body.source === 'photographer' ? 'photographer' : 'guest';
+      const fileKey = `events/${slug}/${source}/${Date.now()}-${Math.random().toString(36).slice(2, 7)}.jpg`;
       try {
         const uploadUrl = await createR2PresignedUploadUrl(
           fileKey,
