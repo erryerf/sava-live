@@ -50,6 +50,7 @@ export class StorageService {
     this.s3Client = new S3Client({
       region: 'auto',
       endpoint,
+      forcePathStyle: true,
       credentials: {
         accessKeyId,
         secretAccessKey,

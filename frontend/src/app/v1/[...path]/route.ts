@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ensureDbSchema, getDbPool } from '@/lib/db';
+import { createR2PresignedUploadUrl, getR2ObjectStream, getR2PublicUrl } from '@/lib/r2';
 import { AdminEvent, PhotoItem, PublicEvent } from '@/lib/types';
 
 function rowToAdminEvent(row: any): AdminEvent {
@@ -65,6 +66,30 @@ export async function GET(
   const url = new URL(req.url);
 
   try {
+    // GET /v1/photos/asset/... (Streaming directly from Cloudflare R2 with global edge caching)
+    if (path.length >= 2 && path[0] === 'photos' && path[1] === 'asset') {
+      const fileKey = path.slice(2).join('/');
+      try {
+        const { body, contentType, contentLength } = await getR2ObjectStream(fileKey);
+        if (!body) {
+          return new NextResponse('Not Found', { status: 404 });
+        }
+        return new NextResponse(body, {
+          headers: {
+            'Content-Type': contentType || 'image/jpeg',
+            'Cache-Control': 'public, max-age=31536000, s-maxage=31536000, stale-while-revalidate=86400, immutable',
+            ...(contentLength ? { 'Content-Length': String(contentLength) } : {}),
+          },
+        });
+      } catch (err: any) {
+        if (err?.name === 'NoSuchKey' || err?.$metadata?.httpStatusCode === 404) {
+          return new NextResponse('Asset Not Found', { status: 404 });
+        }
+        console.error('Error fetching R2 asset:', err);
+        return new NextResponse('Failed to load asset', { status: 500 });
+      }
+    }
+
     // GET /v1/admin/events
     if (path.length === 2 && path[0] === 'admin' && path[1] === 'events') {
       const status = url.searchParams.get('status');
@@ -310,24 +335,39 @@ export async function POST(
     if (path.length === 4 && path[0] === 'events' && path[2] === 'photos' && path[3] === 'presigned-url') {
       const slug = decodeURIComponent(path[1]).toLowerCase();
       const fileKey = `events/${slug}/guest/${Date.now()}-${Math.random().toString(36).slice(2, 7)}.jpg`;
-      const origin = new URL(req.url).origin;
-      return NextResponse.json({
-        success: true,
-        data: {
-          upload_url: `${origin}/v1/upload-target?key=${encodeURIComponent(fileKey)}`,
-          file_key: fileKey,
-          expires_in: 300,
-        },
-      });
+      try {
+        const uploadUrl = await createR2PresignedUploadUrl(
+          fileKey,
+          body.content_type || 'image/jpeg',
+          300,
+        );
+        return NextResponse.json({
+          success: true,
+          data: {
+            upload_url: uploadUrl,
+            file_key: fileKey,
+            expires_in: 300,
+          },
+        });
+      } catch {
+        const origin = new URL(req.url).origin;
+        return NextResponse.json({
+          success: true,
+          data: {
+            upload_url: `${origin}/v1/upload-target?key=${encodeURIComponent(fileKey)}`,
+            file_key: fileKey,
+            expires_in: 300,
+          },
+        });
+      }
     }
 
     // POST /v1/events/:slug/photos/confirm
     if (path.length === 4 && path[0] === 'events' && path[2] === 'photos' && path[3] === 'confirm') {
       const slug = decodeURIComponent(path[1]).toLowerCase();
       const photoId = `photo-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-      const url =
-        body.data_url ||
-        `https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=900&q=85`;
+      const fileKey = String(body.file_key || '');
+      const url = fileKey ? getR2PublicUrl(fileKey) : (body.data_url || 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=900&q=85');
       const source = String(body.guest_identifier || '').startsWith('admin_photographer_')
         ? 'photographer'
         : 'guest';
