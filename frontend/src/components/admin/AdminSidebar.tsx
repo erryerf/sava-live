@@ -1,9 +1,9 @@
 'use client';
 
 import React from 'react';
-import { FolderKanban, KeyRound, LogOut, Users } from 'lucide-react';
+import { FolderKanban, LogOut, Users } from 'lucide-react';
 
-export type AdminNavSection = 'events' | 'users' | 'settings';
+export type AdminNavSection = 'events' | 'users';
 
 interface AdminSidebarProps {
   navSection: AdminNavSection;
@@ -26,7 +26,6 @@ export default function AdminSidebar({
   }[] = [
     { id: 'events', label: 'Daftar Acara', icon: FolderKanban },
     { id: 'users', label: 'Tim Operator', icon: Users },
-    { id: 'settings', label: 'Kunci Akses API', icon: KeyRound },
   ];
 
   return (

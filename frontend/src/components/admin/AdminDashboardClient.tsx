@@ -7,7 +7,6 @@ import { fetchAdminEvents } from '@/lib/admin-api';
 import { AdminEvent, EventStatus } from '@/lib/types';
 import AdminSidebar, { AdminNavSection } from './AdminSidebar';
 import {
-  AdminSettingsSection,
   AdminUsersSection,
   getStoredOperatorAccounts,
 } from './AdminUsersAndSettings';
@@ -508,13 +507,8 @@ export default function AdminDashboardClient() {
             onOpenEditModal={(evt) => setEditingEvent(evt)}
             onOpenDeleteModal={(evt) => setDeletingEvent(evt)}
           />
-        ) : navSection === 'users' ? (
-          <AdminUsersSection isDemoMode={isDemoMode} showToast={showToast} />
         ) : (
-          <AdminSettingsSection
-            onTokenSaved={loadEvents}
-            showToast={showToast}
-          />
+          <AdminUsersSection isDemoMode={isDemoMode} showToast={showToast} />
         )}
       </div>
 
