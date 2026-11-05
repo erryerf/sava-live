@@ -441,47 +441,10 @@ export function useGuestGalleryData(slug: string) {
       );
       return;
     } catch (err) {
-      console.warn('Direct upload attempt notice:', err);
-      showToast('Gagal mengirim ke server. Silakan coba kembali.', 'warning');
+      console.warn('Direct upload failed:', err);
+      setUsedQuota(latestQuota);
+      throw new Error('Foto gagal terkirim. Cek sinyal, lalu coba lagi.');
     }
-
-    // Fallback to local storage if offline or disconnected
-    const newDemoPhotos: PhotoItem[] = [];
-    for (const item of capturedQueue) {
-      const dataUrl = await new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onload = () =>
-          resolve(
-            typeof reader.result === 'string'
-              ? reader.result
-              : item.previewUrl,
-          );
-        reader.onerror = () => resolve(item.previewUrl);
-        reader.readAsDataURL(item.file);
-      });
-
-      const demoPhoto: PhotoItem = {
-        id: `guest-local-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-        url: dataUrl,
-        source: 'guest',
-        guest_name: guestName.trim() || 'Tamu',
-        created_at: new Date().toISOString(),
-      };
-      addLocalEventPhoto(slug, demoPhoto);
-      newDemoPhotos.unshift(demoPhoto);
-      latestQuota = incrementLocalGuestUploadCount(slug);
-    }
-
-    setPhotosByTab((prev) => ({
-      ...prev,
-      guest: [...newDemoPhotos, ...prev.guest],
-    }));
-    setUsedQuota(latestQuota);
-    setActiveTab('guest');
-    showToast(
-      `${totalSent} foto berhasil disimpan di galeri offline.`,
-      'success',
-    );
   };
 
   return {
