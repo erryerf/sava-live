@@ -384,6 +384,7 @@ export async function POST(
         thumbnail_url: publicUrl,
         source: source as 'photographer' | 'guest',
         guest_name: body.guest_name || null,
+        guest_identifier: body.guest_identifier || null,
         created_at: new Date().toISOString(),
       };
       return NextResponse.json({ success: true, message: 'Foto berhasil disimpan.', data: savedPhoto });
@@ -454,6 +455,7 @@ export async function POST(
         thumbnail_url: url,
         source: source as 'photographer' | 'guest',
         guest_name: body.guest_name || null,
+        guest_identifier: body.guest_identifier || null,
         created_at: new Date().toISOString(),
       };
       return NextResponse.json({ success: true, message: 'Foto berhasil disimpan.', data: savedPhoto });

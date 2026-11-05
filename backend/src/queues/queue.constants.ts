@@ -29,6 +29,7 @@ export interface NewPhotoBroadcastPayload {
   url: string | null;
   source: 'photographer' | 'guest';
   guest_name: string | null;
+  guest_identifier?: string | null;
   created_at: string;
 }
 

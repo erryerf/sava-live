@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useRef, useState } from 'react';
-import { Camera, Loader2, Plus, Sparkles } from 'lucide-react';
+import { Camera, Loader2, Plus, Search, Sparkles, Star, X } from 'lucide-react';
 import { PhotoItem } from '@/lib/types';
 import {
   CapturedShot,
@@ -32,6 +32,13 @@ export default function GuestGalleryClient({ slug }: GuestGalleryClientProps) {
     usedQuota,
     archiveInfo,
     uploadGuestQueue,
+    guestIdentifier,
+    guestViewFilter,
+    setGuestViewFilter,
+    searchQuery,
+    setSearchQuery,
+    myPhotosCount,
+    filteredGuestPhotos,
   } = useGuestGalleryData(slug);
 
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
@@ -41,7 +48,8 @@ export default function GuestGalleryClient({ slug }: GuestGalleryClientProps) {
   const [guestNameInput, setGuestNameInput] = useState('');
   const [uploading, setUploading] = useState(false);
 
-  const currentPhotos = photosByTab[activeTab];
+  const currentPhotos =
+    activeTab === 'guest' ? filteredGuestPhotos : photosByTab.photographer;
   const themeColor = event?.theme_color || '#D4AF37';
   const uploadLimit = event?.guest_upload_limit ?? 5;
   const remainingQuota = Math.max(0, uploadLimit - usedQuota);
@@ -223,55 +231,176 @@ export default function GuestGalleryClient({ slug }: GuestGalleryClientProps) {
         archiveInfo={archiveInfo}
       />
 
-      <main className="max-w-2xl mx-auto px-3 sm:px-4 pt-4">
+      <main className="max-w-2xl mx-auto px-3 sm:px-4 pt-3">
+        {/* Guest Sub-Filter & Search Bar (Only on Galeri Tamu Tab) */}
+        {activeTab === 'guest' && (
+          <div className="mb-4 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              {/* Category Segment: Semua vs Foto Saya */}
+              <div className="flex items-center gap-1 p-1 rounded-2xl bg-neutral-900/90 border border-white/10 text-xs shadow-inner">
+                <button
+                  type="button"
+                  onClick={() => setGuestViewFilter('all')}
+                  className={`px-3 py-1.5 rounded-xl font-bold transition-all ${
+                    guestViewFilter === 'all'
+                      ? 'bg-white text-neutral-950 shadow-md'
+                      : 'text-neutral-400 hover:text-white'
+                  }`}
+                >
+                  Semua ({photosByTab.guest.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (myPhotosCount === 0 && remainingQuota > 0) {
+                      handleFabClick();
+                      return;
+                    }
+                    setGuestViewFilter('my_photos');
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold transition-all ${
+                    guestViewFilter === 'my_photos'
+                      ? 'text-neutral-950 shadow-md scale-[1.02]'
+                      : 'text-neutral-400 hover:text-white'
+                  }`}
+                  style={
+                    guestViewFilter === 'my_photos'
+                      ? { backgroundColor: themeColor }
+                      : undefined
+                  }
+                >
+                  <Star className="w-3.5 h-3.5 fill-current" />
+                  <span>Foto Saya ({myPhotosCount})</span>
+                </button>
+              </div>
+
+              {/* Minimalist Search Input */}
+              <div className="relative flex-1 max-w-[170px] sm:max-w-[210px]">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Cari nama..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-8 pr-7 py-1.5 rounded-xl bg-neutral-900/90 border border-white/10 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-white/30 transition-all"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white p-0.5"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Active Query Info */}
+            {searchQuery && (
+              <div className="text-[11px] text-neutral-400 flex items-center justify-between px-1">
+                <span>
+                  Hasil pencarian &ldquo;{searchQuery}&rdquo;: {currentPhotos.length} foto
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="text-amber-400 hover:underline font-medium"
+                >
+                  Reset
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         {currentPhotos.length === 0 ? (
-          <div className="py-20 px-4 text-center rounded-3xl border border-dashed border-white/15 bg-neutral-900/40">
+          <div className="py-16 px-4 text-center rounded-3xl border border-dashed border-white/15 bg-neutral-900/40">
             <Sparkles
               className="w-9 h-9 mx-auto mb-2.5"
               style={{ color: themeColor }}
             />
             <p className="text-sm font-bold text-white">
-              {activeTab === 'photographer'
-                ? 'Menanti foto pertama dari tim fotografer'
-                : 'Belum ada kiriman foto dari tamu'}
+              {guestViewFilter === 'my_photos'
+                ? 'Anda belum memiliki foto di galeri ini'
+                : searchQuery
+                  ? `Tidak ada foto dengan nama "${searchQuery}"`
+                  : activeTab === 'photographer'
+                    ? 'Menanti foto pertama dari tim fotografer'
+                    : 'Belum ada kiriman foto dari tamu'}
             </p>
-            <p className="text-xs text-neutral-400 mt-1">
-              {activeTab === 'photographer'
-                ? 'Dokumentasi resmi akan tampil secara otomatis di halaman ini.'
-                : 'Ketuk tombol Bagikan Momen di kanan bawah untuk mengunggah foto Anda.'}
+            <p className="text-xs text-neutral-400 mt-1 max-w-sm mx-auto">
+              {guestViewFilter === 'my_photos'
+                ? 'Bagikan momen Anda sekarang untuk langsung melihat koleksi foto Anda di sini.'
+                : searchQuery
+                  ? 'Periksa kembali ejaan nama atau ketuk Reset untuk melihat semua foto.'
+                  : activeTab === 'photographer'
+                    ? 'Dokumentasi resmi akan tampil secara otomatis di halaman ini.'
+                    : 'Ketuk tombol Bagikan Momen di kanan bawah untuk mengunggah foto Anda.'}
             </p>
+
+            {guestViewFilter === 'my_photos' && !isArchived && remainingQuota > 0 && (
+              <button
+                type="button"
+                onClick={handleFabClick}
+                className="mt-4 px-4 py-2 rounded-xl text-xs font-bold text-neutral-950 inline-flex items-center gap-1.5 shadow-lg active:scale-95 transition-transform"
+                style={{ backgroundColor: themeColor }}
+              >
+                <Camera className="w-3.5 h-3.5" />
+                <span>Unggah Foto Sekarang</span>
+              </button>
+            )}
           </div>
         ) : (
           <div className="columns-2 sm:columns-3 gap-3 space-y-3">
-            {currentPhotos.map((photo, index) => (
-              <div
-                key={photo.id}
-                onClick={() => setLightboxIndex(index)}
-                className="break-inside-avoid relative group rounded-2xl overflow-hidden bg-neutral-900 border border-white/10 shadow-lg cursor-pointer active:scale-[0.98] transition-all"
-              >
-                <img
-                  src={photo.thumbnail_url || photo.url}
-                  alt={
-                    photo.guest_name
-                      ? `Potret oleh ${photo.guest_name}`
-                      : 'Dokumentasi Acara'
-                  }
-                  loading="lazy"
-                  decoding="async"
-                  className="w-full h-auto object-cover block group-hover:scale-105 transition-transform duration-500"
-                />
+            {currentPhotos.map((photo, index) => {
+              const isMyPhoto =
+                Boolean(guestIdentifier) &&
+                Boolean(photo.guest_identifier) &&
+                photo.guest_identifier === guestIdentifier;
 
-                {photo.source === 'guest' && (
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/45 to-transparent p-2.5 pt-7">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/65 backdrop-blur-md border border-white/15 text-[11px] font-semibold text-white truncate max-w-full">
-                      <span className="truncate">
-                        {photo.guest_name || 'Tamu'}
-                      </span>
-                    </span>
-                  </div>
-                )}
-              </div>
-            ))}
+              return (
+                <div
+                  key={photo.id}
+                  onClick={() => setLightboxIndex(index)}
+                  className={`break-inside-avoid relative group rounded-2xl overflow-hidden bg-neutral-900 border shadow-lg cursor-pointer active:scale-[0.98] transition-all ${
+                    isMyPhoto
+                      ? 'border-amber-400/80 ring-2 ring-amber-400/25'
+                      : 'border-white/10 hover:border-white/20'
+                  }`}
+                >
+                  <img
+                    src={photo.thumbnail_url || photo.url}
+                    alt={
+                      photo.guest_name
+                        ? `Potret oleh ${photo.guest_name}`
+                        : 'Dokumentasi Acara'
+                    }
+                    loading="lazy"
+                    decoding="async"
+                    className="w-full h-auto object-cover block group-hover:scale-105 transition-transform duration-500"
+                  />
+
+                  {photo.source === 'guest' && (
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/45 to-transparent p-2.5 pt-7">
+                      <div className="flex items-center gap-1.5 max-w-full">
+                        {isMyPhoto && (
+                          <span className="shrink-0 px-2 py-0.5 rounded-full bg-amber-400 text-neutral-950 font-extrabold text-[10px] shadow-sm flex items-center gap-1">
+                            <Star className="w-2.5 h-2.5 fill-current" />
+                            <span>Anda</span>
+                          </span>
+                        )}
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/65 backdrop-blur-md border border-white/15 text-[11px] font-semibold text-white truncate max-w-full">
+                          <span className="truncate">
+                            {photo.guest_name || 'Tamu'}
+                          </span>
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
 

@@ -24,6 +24,7 @@ export interface PhotoItem {
   original_url?: string | null;
   source: PhotoSource;
   guest_name: string | null;
+  guest_identifier?: string | null;
   status?: PhotoStatus;
   created_at: string;
 }

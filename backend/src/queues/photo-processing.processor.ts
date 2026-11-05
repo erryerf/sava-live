@@ -277,6 +277,7 @@ export class PhotoProcessingProcessor extends WorkerHost {
       ),
       source: PhotoSource.GUEST,
       guest_name: photo.guestName ?? null,
+      guest_identifier: photo.guestIdentifier ?? null,
       created_at: photo.createdAt.toISOString(),
     };
 

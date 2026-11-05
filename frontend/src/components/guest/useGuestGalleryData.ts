@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   addLocalEventPhoto,
   confirmGuestPhotoUpload,
@@ -70,6 +70,10 @@ export function useGuestGalleryData(slug: string) {
     download_url: string | null;
   }>({ status: 'none', download_url: null });
 
+  const [guestIdentifier, setGuestIdentifier] = useState<string>('');
+  const [guestViewFilter, setGuestViewFilter] = useState<'all' | 'my_photos'>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+
   const showToast = useCallback(
     (text: string, type: 'success' | 'info' | 'warning' = 'info') => {
       setToast({ text, type });
@@ -84,6 +88,7 @@ export function useGuestGalleryData(slug: string) {
     let mounted = true;
     let isLocalOnlyEvent = false;
     setUsedQuota(getLocalGuestUploadCount(slug));
+    setGuestIdentifier(getOrCreateGuestIdentifier());
 
     async function loadInitial() {
       setLoading(true);
@@ -434,6 +439,25 @@ export function useGuestGalleryData(slug: string) {
     }
   };
 
+  const myPhotosCount = useMemo(() => {
+    if (!guestIdentifier) return 0;
+    return photosByTab.guest.filter(
+      (p) => p.guest_identifier === guestIdentifier,
+    ).length;
+  }, [photosByTab.guest, guestIdentifier]);
+
+  const filteredGuestPhotos = useMemo(() => {
+    let list = photosByTab.guest;
+    if (guestViewFilter === 'my_photos' && guestIdentifier) {
+      list = list.filter((p) => p.guest_identifier === guestIdentifier);
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      list = list.filter((p) => (p.guest_name || '').toLowerCase().includes(q));
+    }
+    return list;
+  }, [photosByTab.guest, guestViewFilter, guestIdentifier, searchQuery]);
+
   return {
     event,
     loading,
@@ -448,6 +472,13 @@ export function useGuestGalleryData(slug: string) {
     usedQuota,
     archiveInfo,
     uploadGuestQueue,
+    guestIdentifier,
+    guestViewFilter,
+    setGuestViewFilter,
+    searchQuery,
+    setSearchQuery,
+    myPhotosCount,
+    filteredGuestPhotos,
   };
 }
 
