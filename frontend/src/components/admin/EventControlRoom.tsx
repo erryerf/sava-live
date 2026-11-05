@@ -45,6 +45,7 @@ import {
   saveLocalEventCustomization,
   subscribeLocalLiveEvents,
   uploadFileToPresignedUrl,
+  uploadPhotoDirectly,
 } from '@/lib/api';
 import { createEventSocket } from '@/lib/socket';
 import { compressImageUnder2MB } from '@/lib/image-compress';
@@ -259,21 +260,14 @@ export default function EventControlRoom({
     setEventPhotos((prev) => [localPhoto, ...prev]);
 
     try {
-      const presigned = await requestGuestPresignedUrl(selectedEvent.slug, {
-        filename: optimizedFile.name,
-        content_type: optimizedFile.type || 'image/jpeg',
+      const confirmed = await uploadPhotoDirectly(selectedEvent.slug, {
+        file_data: dataUrl,
         guest_identifier: `admin_photographer_${Date.now()}`,
         source: 'photographer',
-      });
-      await uploadFileToPresignedUrl(presigned.upload_url, optimizedFile);
-      const confirmed = await confirmGuestPhotoUpload(selectedEvent.slug, {
-        file_key: presigned.file_key,
-        guest_identifier: `admin_photographer_${Date.now()}`,
       });
 
       const savedPhoto: PhotoItem = confirmed?.data || {
         ...localPhoto,
-        url: presigned.file_key ? `/v1/photos/asset/${presigned.file_key}` : localPhoto.url,
       };
 
       addLocalEventPhoto(selectedEvent.slug, savedPhoto);

@@ -49,6 +49,22 @@ export async function createR2PresignedUploadUrl(
   });
 }
 
+export async function uploadR2Buffer(
+  fileKey: string,
+  buffer: Buffer | Uint8Array,
+  contentType: string = 'image/jpeg',
+): Promise<string> {
+  const client = getR2Client();
+  const command = new PutObjectCommand({
+    Bucket: R2_BUCKET_NAME,
+    Key: fileKey,
+    Body: buffer,
+    ContentType: contentType,
+  });
+  await client.send(command);
+  return getR2PublicUrl(fileKey);
+}
+
 export async function getR2ObjectStream(fileKey: string): Promise<{
   body: ReadableStream | null;
   contentType?: string;

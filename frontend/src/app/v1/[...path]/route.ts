@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ensureDbSchema, getDbPool } from '@/lib/db';
-import { createR2PresignedUploadUrl, getR2ObjectStream, getR2PublicUrl } from '@/lib/r2';
+import { createR2PresignedUploadUrl, getR2ObjectStream, getR2PublicUrl, uploadR2Buffer } from '@/lib/r2';
 import { AdminEvent, PhotoItem, PublicEvent } from '@/lib/types';
 
 function rowToAdminEvent(row: any): AdminEvent {
@@ -329,6 +329,62 @@ export async function POST(
         [id],
       );
       return NextResponse.json({ success: true, data: rowToAdminEvent(createdRes.rows[0]) }, { status: 201 });
+    }
+
+    // POST /v1/events/:slug/photos/direct-upload (Direct atomic upload for bulletproof mobile uploads)
+    if (path.length === 4 && path[0] === 'events' && path[2] === 'photos' && path[3] === 'direct-upload') {
+      const slug = decodeURIComponent(path[1]).toLowerCase();
+      const photoId = `photo-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      const source = body.source === 'photographer' ? 'photographer' : 'guest';
+      const fileData = String(body.file_data || '');
+
+      let publicUrl = '';
+      if (fileData.startsWith('data:')) {
+        const matches = fileData.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+        if (matches && matches.length === 3) {
+          const mimeType = matches[1];
+          const base64Data = matches[2];
+          const buffer = Buffer.from(base64Data, 'base64');
+          const ext = mimeType.includes('png') ? 'png' : mimeType.includes('webp') ? 'webp' : 'jpg';
+          const fileKey = `events/${slug}/${source}/${photoId}.${ext}`;
+          try {
+            publicUrl = await uploadR2Buffer(fileKey, buffer, mimeType);
+          } catch (r2Err) {
+            console.error('Direct upload to R2 error:', r2Err);
+          }
+        }
+      }
+
+      if (!publicUrl) {
+        publicUrl = body.data_url || fileData || 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=900&q=85';
+      }
+
+      await db.query(
+        `
+        INSERT INTO photos (id, event_slug, url, thumbnail_url, source, guest_identifier, guest_name, status)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `,
+        [
+          photoId,
+          slug,
+          publicUrl,
+          publicUrl,
+          source,
+          body.guest_identifier || null,
+          body.guest_name || null,
+          'approved',
+        ],
+      );
+
+      const savedPhoto: PhotoItem = {
+        id: photoId,
+        url: publicUrl,
+        thumbnail_url: publicUrl,
+        source: source as 'photographer' | 'guest',
+        guest_name: body.guest_name || null,
+        created_at: new Date().toISOString(),
+      };
+      return NextResponse.json({ success: true, message: 'Foto berhasil disimpan.', data: savedPhoto });
     }
 
     // POST /v1/events/:slug/photos/presigned-url

@@ -96,6 +96,32 @@ export async function uploadFileToPresignedUrl(
   }
 }
 
+export async function uploadPhotoDirectly(
+  slug: string,
+  payload: {
+    file_data: string;
+    guest_name?: string;
+    guest_identifier: string;
+    source?: 'photographer' | 'guest';
+  },
+): Promise<{ success: boolean; message?: string; data: PhotoItem }> {
+  const res = await fetch(
+    `${API_BASE_URL}/events/${encodeURIComponent(slug)}/photos/direct-upload`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+  );
+
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(json.message || 'Gagal mengunggah foto langsung.');
+  }
+
+  return json;
+}
+
 export async function confirmGuestPhotoUpload(
   slug: string,
   payload: {

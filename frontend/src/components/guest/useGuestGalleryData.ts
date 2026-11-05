@@ -16,6 +16,7 @@ import {
   saveLocalEventCustomization,
   subscribeLocalLiveEvents,
   uploadFileToPresignedUrl,
+  uploadPhotoDirectly,
 } from '@/lib/api';
 import { createEventSocket } from '@/lib/socket';
 import { compressImageUnder2MB } from '@/lib/image-compress';
@@ -403,19 +404,19 @@ export function useGuestGalleryData(slug: string) {
       for (const item of capturedQueue) {
         // Compress under 2MB while preserving 2.5K high-resolution fidelity
         const optimizedFile = await compressImageUnder2MB(item.file);
-
-        const presigned = await requestGuestPresignedUrl(slug, {
-          filename: optimizedFile.name,
-          content_type: optimizedFile.type || 'image/jpeg',
-          guest_identifier: guestIdentifier,
+        const dataUrl = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => resolve(item.previewUrl);
+          reader.readAsDataURL(optimizedFile);
         });
 
-        await uploadFileToPresignedUrl(presigned.upload_url, optimizedFile);
-
-        const confirmed = await confirmGuestPhotoUpload(slug, {
-          file_key: presigned.file_key,
-          guest_identifier: guestIdentifier,
+        // Atomic direct upload directly into Cloudflare R2 & Neon DB
+        const confirmed = await uploadPhotoDirectly(slug, {
+          file_data: dataUrl,
           guest_name: guestName.trim() || undefined,
+          guest_identifier: guestIdentifier,
+          source: 'guest',
         });
 
         if (confirmed?.data) {
@@ -423,8 +424,8 @@ export function useGuestGalleryData(slug: string) {
           setPhotosByTab((prev) => ({
             ...prev,
             guest: [
-              confirmed.data!,
-              ...prev.guest.filter((p) => p.id !== confirmed.data!.id),
+              confirmed.data,
+              ...prev.guest.filter((p) => p.id !== confirmed.data.id),
             ],
           }));
         }
@@ -440,7 +441,8 @@ export function useGuestGalleryData(slug: string) {
       );
       return;
     } catch (err) {
-      console.warn('Cloud guest upload deferred to local:', err);
+      console.warn('Direct upload attempt notice:', err);
+      showToast('Gagal mengirim ke server. Silakan coba kembali.', 'warning');
     }
 
     // Fallback to local storage if offline or disconnected
