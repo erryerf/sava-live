@@ -200,8 +200,41 @@ export function useGuestGalleryData(slug: string) {
     }
 
     void loadInitial();
+
+    // Periodic sync every 4s to guarantee real-time updates across cellular and Wi-Fi networks
+    const guestSyncTimer = setInterval(async () => {
+      try {
+        const [mainRes, guestRes] = await Promise.all([
+          fetchEventPhotos(slug, { limit: 30, source: 'photographer' }),
+          fetchEventPhotos(slug, { limit: 30, source: 'guest' }),
+        ]);
+        if (!mounted) return;
+        setPhotosByTab((prev) => {
+          const mapPhoto = new Map<string, PhotoItem>();
+          for (const p of mainRes.data || []) mapPhoto.set(p.id, p);
+          for (const p of prev.photographer) {
+            if (!mapPhoto.has(p.id)) mapPhoto.set(p.id, p);
+          }
+
+          const mapGuest = new Map<string, PhotoItem>();
+          for (const p of guestRes.data || []) mapGuest.set(p.id, p);
+          for (const p of prev.guest) {
+            if (!mapGuest.has(p.id)) mapGuest.set(p.id, p);
+          }
+
+          return {
+            photographer: Array.from(mapPhoto.values()),
+            guest: Array.from(mapGuest.values()),
+          };
+        });
+      } catch {
+        // Ignore network hiccup
+      }
+    }, 4000);
+
     return () => {
       mounted = false;
+      clearInterval(guestSyncTimer);
     };
   }, [slug]);
 

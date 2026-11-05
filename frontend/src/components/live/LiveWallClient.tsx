@@ -185,13 +185,40 @@ export default function LiveWallClient({ slug }: LiveWallClientProps) {
       const res = await fetchEventPhotos(slug, { limit: 40 });
       if (mounted) {
         const localPhotos = getLocalEventPhotos(slug);
-        setPhotos([...localPhotos, ...(res.data || [])]);
+        const map = new Map<string, PhotoItem>();
+        for (const p of res.data || []) map.set(p.id, p);
+        for (const p of localPhotos) {
+          if (!map.has(p.id)) map.set(p.id, p);
+        }
+        setPhotos(Array.from(map.values()));
       }
     }
 
     void loadWall();
+
+    // Background sync every 3.5s to display photos from any device on live wall
+    const wallSyncTimer = setInterval(() => {
+      fetchEventPhotos(slug, { limit: 40 })
+        .then((res) => {
+          if (!mounted || !res.data) return;
+          setPhotos((prev) => {
+            const knownIds = new Set(prev.map((p) => p.id));
+            const newShots = res.data.filter((p) => !knownIds.has(p.id));
+            if (newShots.length > 0) {
+              for (const p of newShots) {
+                enqueueSpotlightPhoto(p);
+              }
+              return [...newShots, ...prev];
+            }
+            return prev;
+          });
+        })
+        .catch(() => {});
+    }, 3500);
+
     return () => {
       mounted = false;
+      clearInterval(wallSyncTimer);
     };
   }, [slug]);
 

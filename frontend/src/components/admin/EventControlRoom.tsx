@@ -171,6 +171,12 @@ export default function EventControlRoom({
     void loadControlRoomPhotos();
     void loadBridgeStatus();
 
+    // Auto-sync control room gallery every 3.5 seconds across all devices
+    const syncTimer = setInterval(() => {
+      void loadControlRoomPhotos();
+      void loadBridgeStatus();
+    }, 3500);
+
     const unsubLocal = subscribeLocalLiveEvents(selectedEvent.slug, {
       onNewPhoto: (photo) => {
         setEventPhotos((prev) => {
@@ -219,6 +225,7 @@ export default function EventControlRoom({
     });
 
     return () => {
+      clearInterval(syncTimer);
       unsubLocal();
       socket.disconnect();
     };
