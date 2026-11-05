@@ -51,6 +51,8 @@ function toPublicEvent(evt: AdminEvent): PublicEvent {
     status: evt.status,
     theme_color: evt.theme_color,
     header_image_url: evt.header_image_url ?? null,
+    custom_frame_key: evt.custom_frame_key ?? null,
+    custom_frame_url: evt.custom_frame_url ?? null,
     guest_upload_limit: Number(evt.guest_upload_limit ?? 5),
     is_upload_allowed: evt.status === 'active',
   };
@@ -457,6 +459,80 @@ export async function POST(
       return NextResponse.json({ success: true, message: 'Foto berhasil disimpan.', data: savedPhoto });
     }
 
+    // POST /v1/admin/events/:id/frame/presigned-url
+    if (path.length === 5 && path[0] === 'admin' && path[1] === 'events' && path[3] === 'frame' && path[4] === 'presigned-url') {
+      const eventId = path[2];
+      const evtRes = await db.query('SELECT slug FROM events WHERE id = $1 OR slug = $1 LIMIT 1', [eventId]);
+      const slug = evtRes.rows[0]?.slug || eventId;
+      const rawFilename = (body.filename || 'frame.png').replace(/[^a-zA-Z0-9.-]/g, '_');
+      const fileKey = `events/${slug}/frames/${Date.now()}-${rawFilename}`;
+      try {
+        const uploadUrl = await createR2PresignedUploadUrl(
+          fileKey,
+          body.content_type || 'image/png',
+          300,
+        );
+        const publicUrl = getR2PublicUrl(fileKey);
+        return NextResponse.json({
+          success: true,
+          data: {
+            upload_url: uploadUrl,
+            file_key: fileKey,
+            public_url: publicUrl,
+            expires_in: 300,
+          },
+        });
+      } catch {
+        const origin = new URL(req.url).origin;
+        return NextResponse.json({
+          success: true,
+          data: {
+            upload_url: `${origin}/v1/upload-target?key=${encodeURIComponent(fileKey)}`,
+            file_key: fileKey,
+            public_url: null,
+            expires_in: 300,
+          },
+        });
+      }
+    }
+
+    // POST /v1/admin/events/:id/header/presigned-url
+    if (path.length === 5 && path[0] === 'admin' && path[1] === 'events' && path[3] === 'header' && path[4] === 'presigned-url') {
+      const eventId = path[2];
+      const evtRes = await db.query('SELECT slug FROM events WHERE id = $1 OR slug = $1 LIMIT 1', [eventId]);
+      const slug = evtRes.rows[0]?.slug || eventId;
+      const rawFilename = (body.filename || 'header.jpg').replace(/[^a-zA-Z0-9.-]/g, '_');
+      const fileKey = `events/${slug}/headers/${Date.now()}-${rawFilename}`;
+      try {
+        const uploadUrl = await createR2PresignedUploadUrl(
+          fileKey,
+          body.content_type || 'image/jpeg',
+          300,
+        );
+        const publicUrl = getR2PublicUrl(fileKey);
+        return NextResponse.json({
+          success: true,
+          data: {
+            upload_url: uploadUrl,
+            file_key: fileKey,
+            public_url: publicUrl,
+            expires_in: 300,
+          },
+        });
+      } catch {
+        const origin = new URL(req.url).origin;
+        return NextResponse.json({
+          success: true,
+          data: {
+            upload_url: `${origin}/v1/upload-target?key=${encodeURIComponent(fileKey)}`,
+            file_key: fileKey,
+            public_url: null,
+            expires_in: 300,
+          },
+        });
+      }
+    }
+
     return NextResponse.json({ success: true, data: {} });
   } catch (err) {
     console.error('API POST error:', err);
@@ -477,6 +553,11 @@ export async function PATCH(
     // PATCH /v1/admin/events/:id
     if (path.length === 3 && path[0] === 'admin' && path[1] === 'events') {
       const id = path[2];
+      const hasHeaderChange = body.header_image_url !== undefined;
+      const hasFrameChange = body.custom_frame_key !== undefined || body.custom_frame_url !== undefined;
+      const customFrameKey = body.custom_frame_key !== undefined ? body.custom_frame_key : null;
+      const customFrameUrl = customFrameKey ? getR2PublicUrl(customFrameKey) : (body.custom_frame_url !== undefined ? body.custom_frame_url : null);
+
       await db.query(
         `
         UPDATE events SET
@@ -487,9 +568,11 @@ export async function PATCH(
           theme_color = COALESCE($5, theme_color),
           guest_upload_limit = COALESCE($6, guest_upload_limit),
           require_guest_moderation = COALESCE($7, require_guest_moderation),
-          header_image_url = COALESCE($8, header_image_url),
+          header_image_url = CASE WHEN $8::boolean THEN $9 ELSE header_image_url END,
+          custom_frame_key = CASE WHEN $10::boolean THEN $11 ELSE custom_frame_key END,
+          custom_frame_url = CASE WHEN $10::boolean THEN $12 ELSE custom_frame_url END,
           updated_at = NOW()
-        WHERE id = $9 OR slug = $9
+        WHERE id = $13 OR slug = $13
       `,
         [
           body.name,
@@ -499,7 +582,11 @@ export async function PATCH(
           body.theme_color,
           body.guest_upload_limit !== undefined ? Number(body.guest_upload_limit) : null,
           body.require_guest_moderation !== undefined ? Boolean(body.require_guest_moderation) : null,
-          body.header_image_url,
+          hasHeaderChange,
+          body.header_image_url ?? null,
+          hasFrameChange,
+          customFrameKey,
+          customFrameUrl,
           id,
         ],
       );

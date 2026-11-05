@@ -197,6 +197,8 @@ export interface LocalEventCustomization {
   header_subtitle?: string | null;
   theme_color?: string;
   header_image_url?: string | null;
+  custom_frame_key?: string | null;
+  custom_frame_url?: string | null;
   guest_upload_limit?: number;
   status?: PublicEvent['status'];
   is_upload_allowed?: boolean;

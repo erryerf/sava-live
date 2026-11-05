@@ -17,6 +17,7 @@ import {
   QrCode,
   RefreshCw,
   ShieldAlert,
+  Sparkles,
   Trash2,
   Upload,
   Wifi,
@@ -33,6 +34,7 @@ import {
   triggerAdminArchive,
   updateAdminEvent,
   updateAdminEventStatus,
+  uploadAdminCustomFrame,
   uploadAdminHeaderImage,
 } from '@/lib/admin-api';
 import {
@@ -105,6 +107,7 @@ export default function EventControlRoom({
     active_sessions: number;
   } | null>(null);
   const [simulatingShot, setSimulatingShot] = useState(false);
+  const [uploadingFrame, setUploadingFrame] = useState(false);
 
   const qrCanvasRef = useRef<HTMLDivElement | null>(null);
   const folderWatchTimerRef = useRef<ReturnType<typeof setInterval> | null>(
@@ -430,6 +433,91 @@ export default function EventControlRoom({
     reader.readAsDataURL(file);
   };
 
+  const handleFrameFileChange = (file: File | null) => {
+    if (!file) return;
+    if (file.type && !file.type.includes('png') && !file.name.toLowerCase().endsWith('.png')) {
+      showToast('Gunakan file berformat .PNG transparan.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const dataUrl = typeof reader.result === 'string' ? reader.result : null;
+      if (!dataUrl) return;
+
+      saveLocalEventCustomization(selectedEvent.slug, {
+        custom_frame_url: dataUrl,
+        custom_frame_key: `events/${selectedEvent.slug}/frames/${file.name}`,
+      });
+
+      const updatedEvt: AdminEvent = {
+        ...selectedEvent,
+        custom_frame_url: dataUrl,
+        custom_frame_key: `events/${selectedEvent.slug}/frames/${file.name}`,
+      };
+      onEventUpdated(updatedEvt);
+
+      if (isDemoMode) {
+        const allDemo = getStoredDemoEvents().map((item) =>
+          item.id === selectedEvent.id ? updatedEvt : item,
+        );
+        saveStoredDemoEvents(allDemo);
+        showToast('Bingkai digital .PNG berhasil dipasang! 🖼️');
+      } else {
+        try {
+          setUploadingFrame(true);
+          const res = await uploadAdminCustomFrame(selectedEvent.id, file);
+          const serverEvt: AdminEvent = {
+            ...selectedEvent,
+            custom_frame_key: res.file_key,
+            custom_frame_url: res.public_url || dataUrl,
+          };
+          onEventUpdated(serverEvt);
+          saveLocalEventCustomization(selectedEvent.slug, {
+            custom_frame_key: res.file_key,
+            custom_frame_url: res.public_url || dataUrl,
+          });
+          showToast('Bingkai digital .PNG berhasil diunggah! 🖼️');
+        } catch (err) {
+          console.warn('Frame upload error:', err);
+          showToast('Bingkai tersimpan lokal.');
+        } finally {
+          setUploadingFrame(false);
+        }
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveFrame = async () => {
+    saveLocalEventCustomization(selectedEvent.slug, {
+      custom_frame_url: null,
+      custom_frame_key: null,
+    });
+    const updatedEvt: AdminEvent = {
+      ...selectedEvent,
+      custom_frame_url: null,
+      custom_frame_key: null,
+    };
+    onEventUpdated(updatedEvt);
+
+    if (isDemoMode) {
+      const allDemo = getStoredDemoEvents().map((item) =>
+        item.id === selectedEvent.id ? updatedEvt : item,
+      );
+      saveStoredDemoEvents(allDemo);
+    } else {
+      try {
+        await updateAdminEvent(selectedEvent.id, {
+          custom_frame_key: null,
+        });
+      } catch {
+        // kept locally
+      }
+    }
+    showToast('Bingkai digital dihapus.');
+  };
+
   const handleSaveHeaderTexts = async () => {
     const cleanName = editEventName.trim() || selectedEvent.name;
     const cleanSub = editHeaderSubtitle.trim();
@@ -535,6 +623,11 @@ export default function EventControlRoom({
   const currentHeaderImage =
     selectedEvent.header_image_url ||
     getLocalEventCustomization(selectedEvent.slug)?.header_image_url ||
+    null;
+
+  const currentFrameImage =
+    selectedEvent.custom_frame_url ||
+    getLocalEventCustomization(selectedEvent.slug)?.custom_frame_url ||
     null;
 
   return (
@@ -912,6 +1005,89 @@ export default function EventControlRoom({
                   }}
                   className="px-3 py-2 rounded-md bg-[#1A1A18] hover:bg-[#242422] border border-white/[0.08] text-neutral-300 text-xs font-medium"
                   title="Hapus Foto Sampul"
+                >
+                  Reset
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* 3. Custom Digital Frame (.PNG) */}
+          <div className="p-5 rounded-lg bg-[#121211] border border-white/[0.07] space-y-3.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-400">
+                  Bingkai Digital (.PNG)
+                </span>
+                {currentFrameImage ? (
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    Aktif
+                  </span>
+                ) : (
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-white/[0.05] text-neutral-400 border border-white/[0.08]">
+                    Belum Ada
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Live Frame Preview */}
+            {currentFrameImage ? (
+              <div className="relative h-44 rounded-md overflow-hidden border border-white/[0.08] bg-[#0A0A09] flex items-center justify-center">
+                <img
+                  src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=800&q=80"
+                  alt="Foto Contoh"
+                  className="absolute inset-0 w-full h-full object-cover opacity-60"
+                />
+                <img
+                  src={currentFrameImage}
+                  alt="Bingkai Acara"
+                  className="absolute inset-0 w-full h-full object-contain pointer-events-none z-10"
+                />
+                <div className="absolute bottom-2 left-2 right-2 px-2 py-1 rounded bg-black/75 backdrop-blur-xs text-[10px] text-neutral-300 text-center z-20">
+                  Simulasi Pratinjau Bingkai Transparan di atas Foto
+                </div>
+              </div>
+            ) : (
+              <div className="h-32 rounded-md border border-dashed border-white/15 bg-[#0B0B0A] flex flex-col items-center justify-center p-4 text-center">
+                <Sparkles className="w-5 h-5 text-neutral-500 mb-1.5" />
+                <span className="text-xs font-medium text-neutral-300">
+                  Belum Ada Bingkai Digital
+                </span>
+                <span className="text-[11px] text-neutral-500 max-w-xs mt-0.5 leading-relaxed">
+                  Unggah file .PNG transparan agar otomatis ditempelkan pada setiap bidikan fotografer &amp; foto tamu.
+                </span>
+              </div>
+            )}
+
+            <div className="flex gap-2 pt-1">
+              <label className="flex-1 py-2 px-3 rounded-md bg-[#F5F4F0] hover:bg-white text-[#0E0E0D] text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer transition-colors">
+                <Upload className="w-3.5 h-3.5" />
+                <span>
+                  {uploadingFrame
+                    ? 'Mengunggah...'
+                    : currentFrameImage
+                      ? 'Ganti Bingkai (.PNG)'
+                      : 'Unggah Bingkai (.PNG)'}
+                </span>
+                <input
+                  type="file"
+                  accept="image/png"
+                  disabled={uploadingFrame}
+                  onChange={(e) => {
+                    handleFrameFileChange(e.target.files?.[0] || null);
+                    e.target.value = '';
+                  }}
+                  className="hidden"
+                />
+              </label>
+
+              {currentFrameImage && (
+                <button
+                  type="button"
+                  onClick={handleRemoveFrame}
+                  className="px-3 py-2 rounded-md bg-[#1A1A18] hover:bg-[#242422] border border-white/[0.08] text-neutral-300 text-xs font-medium"
+                  title="Hapus Bingkai Digital"
                 >
                   Reset
                 </button>

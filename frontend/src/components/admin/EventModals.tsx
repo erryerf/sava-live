@@ -595,6 +595,13 @@ export function EditEventModal({
   const [editModalHeaderPreview, setEditModalHeaderPreview] = useState<
     string | null
   >(null);
+  const [editModalFrameFile, setEditModalFrameFile] = useState<File | null>(
+    null,
+  );
+  const [editModalFramePreview, setEditModalFramePreview] = useState<
+    string | null
+  >(null);
+  const [isFrameCleared, setIsFrameCleared] = useState(false);
   const [editFormData, setEditFormData] = useState({
     name: '',
     header_subtitle: 'The Wedding of',
@@ -621,6 +628,11 @@ export function EditEventModal({
     setEditModalHeaderFile(null);
     setEditModalHeaderPreview(
       editingEvent.header_image_url || localCustom?.header_image_url || null,
+    );
+    setEditModalFrameFile(null);
+    setIsFrameCleared(false);
+    setEditModalFramePreview(
+      editingEvent.custom_frame_url || localCustom?.custom_frame_url || null,
     );
     setEditFormData({
       name: localCustom?.name || editingEvent.name,
@@ -657,11 +669,22 @@ export function EditEventModal({
           .replace(/[^a-z0-9-]+/g, '-')
           .replace(/^-|-$/g, '') || editingEvent.slug;
 
+      const frameUrl = isFrameCleared
+        ? null
+        : editModalFramePreview || editingEvent.custom_frame_url || null;
+      const frameKey = isFrameCleared
+        ? null
+        : editModalFrameFile
+          ? `events/${cleanSlug}/frames/${editModalFrameFile.name}`
+          : editingEvent.custom_frame_key || null;
+
       saveLocalEventCustomization(cleanSlug, {
         name: editFormData.name.trim(),
         header_subtitle: editFormData.header_subtitle.trim(),
         theme_color: editFormData.theme_color,
         header_image_url: editModalHeaderPreview,
+        custom_frame_url: frameUrl,
+        custom_frame_key: frameKey,
         guest_upload_limit: Number(editFormData.guest_upload_limit),
         status: editFormData.status,
         is_upload_allowed: editFormData.status === 'active',
@@ -680,6 +703,8 @@ export function EditEventModal({
           end_time: new Date(editFormData.end_time).toISOString(),
           theme_color: editFormData.theme_color,
           header_image_url: editModalHeaderPreview,
+          custom_frame_url: frameUrl,
+          custom_frame_key: frameKey,
           guest_upload_limit: Number(editFormData.guest_upload_limit),
           require_guest_moderation: editFormData.require_guest_moderation,
           updated_at: new Date().toISOString(),
@@ -713,7 +738,13 @@ export function EditEventModal({
         theme_color: editFormData.theme_color,
         guest_upload_limit: Number(editFormData.guest_upload_limit),
         require_guest_moderation: editFormData.require_guest_moderation,
+        custom_frame_key: isFrameCleared ? null : undefined,
       });
+
+      if (isFrameCleared) {
+        updated.custom_frame_key = null;
+        updated.custom_frame_url = null;
+      }
 
       if (editModalHeaderFile) {
         try {
@@ -725,6 +756,20 @@ export function EditEventModal({
             uploadedHeader.public_url || editModalHeaderPreview;
         } catch {
           updated.header_image_url = editModalHeaderPreview;
+        }
+      }
+
+      if (editModalFrameFile) {
+        try {
+          const uploadedFrame = await uploadAdminCustomFrame(
+            editingEvent.id,
+            editModalFrameFile,
+          );
+          updated.custom_frame_key = uploadedFrame.file_key;
+          updated.custom_frame_url =
+            uploadedFrame.public_url || editModalFramePreview;
+        } catch {
+          updated.custom_frame_url = editModalFramePreview;
         }
       }
 
@@ -963,6 +1008,55 @@ export function EditEventModal({
                 className="px-3 py-2 rounded-md bg-[#1A1A18] hover:bg-[#242422] border border-white/[0.08] text-xs text-neutral-300"
               >
                 Hapus Foto
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-neutral-300 mb-1">
+            Bingkai Foto Digital (.PNG Transparan - Opsional)
+          </label>
+          <div className="flex gap-2">
+            <label className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-md border border-dashed border-white/15 bg-[#0B0B0A] hover:bg-[#161614] cursor-pointer text-xs text-neutral-300">
+              <Upload className="w-3.5 h-3.5 text-neutral-400" />
+              <span className="truncate">
+                {editModalFrameFile
+                  ? editModalFrameFile.name
+                  : editModalFramePreview
+                    ? 'Bingkai Terpasang (Klik untuk Ganti)'
+                    : 'Pilih File PNG Bingkai'}
+              </span>
+              <input
+                type="file"
+                accept="image/png"
+                onChange={(e) => {
+                  const f = e.target.files?.[0] || null;
+                  if (!f) return;
+                  setEditModalFrameFile(f);
+                  setIsFrameCleared(false);
+                  const reader = new FileReader();
+                  reader.onload = () => {
+                    if (typeof reader.result === 'string') {
+                      setEditModalFramePreview(reader.result);
+                    }
+                  };
+                  reader.readAsDataURL(f);
+                }}
+                className="hidden"
+              />
+            </label>
+            {(editModalFramePreview || editModalFrameFile) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setEditModalFrameFile(null);
+                  setEditModalFramePreview(null);
+                  setIsFrameCleared(true);
+                }}
+                className="px-3 py-2 rounded-md bg-[#1A1A18] hover:bg-[#242422] border border-white/[0.08] text-xs text-neutral-300"
+              >
+                Hapus Frame
               </button>
             )}
           </div>

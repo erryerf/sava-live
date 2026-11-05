@@ -11,6 +11,8 @@ export interface PublicEvent {
   status: EventStatus;
   theme_color: string;
   header_image_url?: string | null;
+  custom_frame_key?: string | null;
+  custom_frame_url?: string | null;
   guest_upload_limit: number;
   is_upload_allowed: boolean;
 }
