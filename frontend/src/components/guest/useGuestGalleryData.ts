@@ -138,11 +138,11 @@ export function useGuestGalleryData(slug: string) {
         setPhotosByTab({
           photographer: [
             ...localPhotos.filter((p) => p.source === 'photographer'),
-            ...DEMO_PHOTOS.photographer,
+            ...(slug === 'budi-ani' ? DEMO_PHOTOS.photographer : []),
           ],
           guest: [
             ...localPhotos.filter((p) => p.source === 'guest'),
-            ...DEMO_PHOTOS.guest,
+            ...(slug === 'budi-ani' ? DEMO_PHOTOS.guest : []),
           ],
         });
         setLoading(false);
@@ -364,39 +364,41 @@ export function useGuestGalleryData(slug: string) {
     const guestIdentifier = getOrCreateGuestIdentifier();
     const totalSent = capturedQueue.length;
 
-    if (isDemoMode) {
-      const newDemoPhotos: PhotoItem[] = [];
-      let latestQuota = usedQuota;
+    let latestQuota = usedQuota;
 
+    try {
       for (const item of capturedQueue) {
-        const dataUrl = await new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onload = () =>
-            resolve(
-              typeof reader.result === 'string'
-                ? reader.result
-                : item.previewUrl,
-            );
-          reader.onerror = () => resolve(item.previewUrl);
-          reader.readAsDataURL(item.file);
+        // Compress under 2MB while preserving 2.5K high-resolution fidelity
+        const optimizedFile = await compressImageUnder2MB(item.file);
+
+        const presigned = await requestGuestPresignedUrl(slug, {
+          filename: optimizedFile.name,
+          content_type: optimizedFile.type || 'image/jpeg',
+          guest_identifier: guestIdentifier,
         });
 
-        const demoPhoto: PhotoItem = {
-          id: `guest-local-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-          url: dataUrl,
-          source: 'guest',
-          guest_name: guestName.trim() || 'Tamu',
-          created_at: new Date().toISOString(),
-        };
-        addLocalEventPhoto(slug, demoPhoto);
-        newDemoPhotos.unshift(demoPhoto);
+        await uploadFileToPresignedUrl(presigned.upload_url, optimizedFile);
+
+        const confirmed = await confirmGuestPhotoUpload(slug, {
+          file_key: presigned.file_key,
+          guest_identifier: guestIdentifier,
+          guest_name: guestName.trim() || undefined,
+        });
+
+        if (confirmed?.data) {
+          addLocalEventPhoto(slug, confirmed.data);
+          setPhotosByTab((prev) => ({
+            ...prev,
+            guest: [
+              confirmed.data!,
+              ...prev.guest.filter((p) => p.id !== confirmed.data!.id),
+            ],
+          }));
+        }
+
         latestQuota = incrementLocalGuestUploadCount(slug);
       }
 
-      setPhotosByTab((prev) => ({
-        ...prev,
-        guest: [...newDemoPhotos, ...prev.guest],
-      }));
       setUsedQuota(latestQuota);
       setActiveTab('guest');
       showToast(
@@ -404,34 +406,45 @@ export function useGuestGalleryData(slug: string) {
         'success',
       );
       return;
+    } catch (err) {
+      console.warn('Cloud guest upload deferred to local:', err);
     }
 
-    let latestQuota = usedQuota;
+    // Fallback to local storage if offline or disconnected
+    const newDemoPhotos: PhotoItem[] = [];
     for (const item of capturedQueue) {
-      // Compress under 2MB while preserving 2.5K high-resolution fidelity
-      const optimizedFile = await compressImageUnder2MB(item.file);
-
-      const presigned = await requestGuestPresignedUrl(slug, {
-        filename: optimizedFile.name,
-        content_type: optimizedFile.type || 'image/jpeg',
-        guest_identifier: guestIdentifier,
+      const dataUrl = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () =>
+          resolve(
+            typeof reader.result === 'string'
+              ? reader.result
+              : item.previewUrl,
+          );
+        reader.onerror = () => resolve(item.previewUrl);
+        reader.readAsDataURL(item.file);
       });
 
-      await uploadFileToPresignedUrl(presigned.upload_url, optimizedFile);
-
-      await confirmGuestPhotoUpload(slug, {
-        file_key: presigned.file_key,
-        guest_identifier: guestIdentifier,
-        guest_name: guestName.trim() || undefined,
-      });
-
+      const demoPhoto: PhotoItem = {
+        id: `guest-local-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        url: dataUrl,
+        source: 'guest',
+        guest_name: guestName.trim() || 'Tamu',
+        created_at: new Date().toISOString(),
+      };
+      addLocalEventPhoto(slug, demoPhoto);
+      newDemoPhotos.unshift(demoPhoto);
       latestQuota = incrementLocalGuestUploadCount(slug);
     }
 
+    setPhotosByTab((prev) => ({
+      ...prev,
+      guest: [...newDemoPhotos, ...prev.guest],
+    }));
     setUsedQuota(latestQuota);
     setActiveTab('guest');
     showToast(
-      `${totalSent} foto berhasil diunggah ke galeri acara.`,
+      `${totalSent} foto berhasil disimpan di galeri offline.`,
       'success',
     );
   };

@@ -61,32 +61,27 @@ async function uploadToR2(fileKey, filePath, contentType) {
 async function savePhotoToDatabase(slug, photoData) {
   if (!dbPool) return null;
   try {
-    const eventRes = await dbPool.query('SELECT id FROM events WHERE slug = $1 LIMIT 1', [slug]);
-    if (!eventRes.rows.length) return null;
-    const eventId = eventRes.rows[0].id;
-
+    const photoId = photoData.id || `photo-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     const res = await dbPool.query(
       `
       INSERT INTO photos (
-        event_id, source, guest_name, url, thumbnail_url,
-        file_key, file_size, status, created_at
+        id, event_slug, source, guest_name, url, thumbnail_url, status, created_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
       RETURNING *
     `,
       [
-        eventId,
+        photoId,
+        slug,
         'photographer',
         null,
         photoData.url,
-        photoData.thumbnail_url,
-        photoData.file_key || null,
-        photoData.file_size || 0,
+        photoData.thumbnail_url || photoData.url,
         'approved',
       ],
     );
 
-    await dbPool.query('UPDATE events SET ftp_last_upload_at = NOW(), ftp_last_connected_at = NOW() WHERE id = $1', [eventId]);
+    await dbPool.query('UPDATE events SET ftp_last_upload_at = NOW(), ftp_last_connected_at = NOW() WHERE LOWER(slug) = LOWER($1)', [slug]);
     return res.rows[0];
   } catch (err) {
     console.error('[LIVE-CAMERA] Database save notice:', err.message);

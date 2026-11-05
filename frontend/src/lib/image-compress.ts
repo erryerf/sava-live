@@ -100,3 +100,4 @@ export async function compressImageUnder2MB(
     lastModified: Date.now(),
   });
 }
+

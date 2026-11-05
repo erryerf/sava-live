@@ -129,13 +129,29 @@ export default function EventControlRoom({
     );
 
     async function loadControlRoomPhotos() {
-      const localPhotos = getLocalEventPhotos(selectedEvent.slug);
-      if (isDemoMode) {
-        setEventPhotos([...localPhotos, ...DEMO_ADMIN_PHOTOS]);
-        return;
+      try {
+        const list = await fetchAdminEventPhotos(selectedEvent.id || selectedEvent.slug);
+        const localPhotos = getLocalEventPhotos(selectedEvent.slug);
+        const map = new Map<string, PhotoItem>();
+        for (const p of list || []) map.set(p.id, p);
+        for (const p of localPhotos) {
+          if (!map.has(p.id)) map.set(p.id, p);
+        }
+        const merged = Array.from(map.values());
+        if (merged.length > 0 || selectedEvent.slug !== 'budi-ani') {
+          setEventPhotos(merged);
+          return;
+        }
+      } catch (err) {
+        console.warn('Gagal memuat foto server:', err);
       }
-      const list = await fetchAdminEventPhotos(selectedEvent.id);
-      setEventPhotos([...localPhotos, ...list]);
+
+      const localPhotos = getLocalEventPhotos(selectedEvent.slug);
+      if (selectedEvent.slug === 'budi-ani') {
+        setEventPhotos([...localPhotos, ...DEMO_ADMIN_PHOTOS]);
+      } else {
+        setEventPhotos(localPhotos);
+      }
     }
 
     async function loadBridgeStatus() {
@@ -180,9 +196,9 @@ export default function EventControlRoom({
       }
       const payload =
         rawPayload &&
-        typeof rawPayload === 'object' &&
-        'data' in rawPayload &&
-        (rawPayload as { data?: PhotoItem }).data
+          typeof rawPayload === 'object' &&
+          'data' in rawPayload &&
+          (rawPayload as { data?: PhotoItem }).data
           ? (rawPayload as { data: PhotoItem }).data
           : (rawPayload as PhotoItem);
 
@@ -224,7 +240,7 @@ export default function EventControlRoom({
       reader.readAsDataURL(optimizedFile);
     });
 
-    const newPhoto: PhotoItem = {
+    const localPhoto: PhotoItem = {
       id: `main-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       url: dataUrl,
       source: 'photographer',
@@ -233,25 +249,34 @@ export default function EventControlRoom({
       created_at: new Date().toISOString(),
     };
 
-    addLocalEventPhoto(selectedEvent.slug, newPhoto);
-    setEventPhotos((prev) => [newPhoto, ...prev]);
+    setEventPhotos((prev) => [localPhoto, ...prev]);
 
-    if (!isDemoMode) {
-      try {
-        const presigned = await requestGuestPresignedUrl(selectedEvent.slug, {
-          filename: optimizedFile.name,
-          content_type: optimizedFile.type || 'image/jpeg',
-          guest_identifier: `admin_photographer_${Date.now()}`,
-          source: 'photographer',
-        });
-        await uploadFileToPresignedUrl(presigned.upload_url, optimizedFile);
-        await confirmGuestPhotoUpload(selectedEvent.slug, {
-          file_key: presigned.file_key,
-          guest_identifier: `admin_photographer_${Date.now()}`,
-        });
-      } catch {
-        // Kept in local live gallery & BroadcastChannel if R2 is offline
-      }
+    try {
+      const presigned = await requestGuestPresignedUrl(selectedEvent.slug, {
+        filename: optimizedFile.name,
+        content_type: optimizedFile.type || 'image/jpeg',
+        guest_identifier: `admin_photographer_${Date.now()}`,
+        source: 'photographer',
+      });
+      await uploadFileToPresignedUrl(presigned.upload_url, optimizedFile);
+      const confirmed = await confirmGuestPhotoUpload(selectedEvent.slug, {
+        file_key: presigned.file_key,
+        guest_identifier: `admin_photographer_${Date.now()}`,
+      });
+
+      const savedPhoto: PhotoItem = confirmed?.data || {
+        ...localPhoto,
+        url: presigned.file_key ? `/v1/photos/asset/${presigned.file_key}` : localPhoto.url,
+      };
+
+      addLocalEventPhoto(selectedEvent.slug, savedPhoto);
+      setEventPhotos((prev) => [
+        savedPhoto,
+        ...prev.filter((p) => p.id !== localPhoto.id && p.id !== savedPhoto.id),
+      ]);
+    } catch (err) {
+      console.warn('Photographer cloud upload deferred to local:', err);
+      addLocalEventPhoto(selectedEvent.slug, localPhoto);
     }
   };
 
@@ -497,7 +522,7 @@ export default function EventControlRoom({
   const handleForceDeletePhoto = async (photoId: string) => {
     try {
       if (!isDemoMode) {
-        await deleteAdminPhoto(selectedEvent.id, photoId).catch(() => {});
+        await deleteAdminPhoto(selectedEvent.id, photoId).catch(() => { });
       }
       removeLocalEventPhoto(selectedEvent.slug, photoId);
       setEventPhotos((prev) => prev.filter((p) => p.id !== photoId));
@@ -540,11 +565,10 @@ export default function EventControlRoom({
               {selectedEvent.name}
             </h1>
             <span
-              className={`px-2 py-0.5 rounded text-[11px] font-medium ${
-                selectedEvent.status === 'active'
+              className={`px-2 py-0.5 rounded text-[11px] font-medium ${selectedEvent.status === 'active'
                   ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                   : 'bg-white/[0.05] text-neutral-400 border border-white/[0.08]'
-              }`}
+                }`}
             >
               {selectedEvent.status === 'active' ? 'Berlangsung' : 'Selesai'}
             </span>
@@ -950,7 +974,7 @@ export default function EventControlRoom({
             ) : (
               <div className="space-y-2.5">
                 {selectedEvent.archive_status === 'ready' &&
-                selectedEvent.archive_download_url ? (
+                  selectedEvent.archive_download_url ? (
                   <a
                     href={selectedEvent.archive_download_url}
                     target="_blank"
@@ -982,11 +1006,10 @@ export default function EventControlRoom({
               <button
                 type="button"
                 onClick={() => setControlTab('gallery')}
-                className={`px-3.5 py-1.5 rounded text-xs transition-colors ${
-                  controlTab === 'gallery'
+                className={`px-3.5 py-1.5 rounded text-xs transition-colors ${controlTab === 'gallery'
                     ? 'bg-white/[0.1] text-[#F5F4F0] font-medium'
                     : 'text-neutral-400 hover:text-neutral-200'
-                }`}
+                  }`}
               >
                 Galeri Tayang ({approvedPhotos.length})
               </button>
@@ -994,11 +1017,10 @@ export default function EventControlRoom({
               <button
                 type="button"
                 onClick={() => setControlTab('moderation')}
-                className={`px-3.5 py-1.5 rounded text-xs transition-colors flex items-center gap-1.5 ${
-                  controlTab === 'moderation'
+                className={`px-3.5 py-1.5 rounded text-xs transition-colors flex items-center gap-1.5 ${controlTab === 'moderation'
                     ? 'bg-white/[0.1] text-[#F5F4F0] font-medium'
                     : 'text-neutral-400 hover:text-neutral-200'
-                }`}
+                  }`}
               >
                 <ShieldAlert className="w-3.5 h-3.5" />
                 <span>Antrean Moderasi ({pendingPhotos.length})</span>

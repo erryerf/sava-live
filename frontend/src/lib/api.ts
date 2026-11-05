@@ -103,7 +103,7 @@ export async function confirmGuestPhotoUpload(
     guest_identifier: string;
     guest_name?: string;
   },
-): Promise<{ success: boolean; message: string }> {
+): Promise<{ success: boolean; message: string; data?: PhotoItem }> {
   const res = await fetch(
     `${API_BASE_URL}/events/${encodeURIComponent(slug)}/photos/confirm`,
     {
