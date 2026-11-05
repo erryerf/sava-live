@@ -147,6 +147,7 @@ export function useGuestGalleryData(slug: string) {
               : DEFAULT_DEMO_HEADER_PHOTO,
           guest_upload_limit: resolvedLimit,
           is_upload_allowed: resolvedStatus === 'active',
+          gallery_theme: localCustom?.gallery_theme || 'dark',
         });
         const localPhotos = getLocalEventPhotos(slug);
         setPhotosByTab({
@@ -176,6 +177,7 @@ export function useGuestGalleryData(slug: string) {
           localCustom?.header_image_url ||
           null,
         guest_upload_limit: resolvedLimit,
+        gallery_theme: localCustom?.gallery_theme || fetchedEvent.gallery_theme || 'dark',
       });
 
       const [mainRes, guestRes] = await Promise.all([

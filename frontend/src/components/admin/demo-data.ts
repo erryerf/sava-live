@@ -130,6 +130,7 @@ export function getStoredDemoEvents(): AdminEvent[] {
           typeof custom?.guest_upload_limit === 'number'
             ? custom.guest_upload_limit
             : evt.guest_upload_limit,
+        gallery_theme: custom?.gallery_theme || evt.gallery_theme || 'dark',
       };
     });
   } catch {

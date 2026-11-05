@@ -15,6 +15,7 @@ export interface PublicEvent {
   custom_frame_url?: string | null;
   guest_upload_limit: number;
   is_upload_allowed: boolean;
+  gallery_theme?: 'dark' | 'light';
 }
 
 export interface PhotoItem {

@@ -10,6 +10,7 @@ function rowToAdminEvent(row: any): AdminEvent {
     header_subtitle: row.header_subtitle ?? 'The Wedding of',
     slug: String(row.slug),
     status: row.status || 'active',
+    gallery_theme: (row.gallery_theme as 'dark' | 'light') || 'dark',
     theme_color: row.theme_color || '#D4AF37',
     header_image_url: row.header_image_url || null,
     guest_upload_limit: Number(row.guest_upload_limit ?? 5),
@@ -55,6 +56,7 @@ function toPublicEvent(evt: AdminEvent): PublicEvent {
     custom_frame_url: evt.custom_frame_url ?? null,
     guest_upload_limit: Number(evt.guest_upload_limit ?? 5),
     is_upload_allowed: evt.status === 'active',
+    gallery_theme: evt.gallery_theme || 'dark',
   };
 }
 

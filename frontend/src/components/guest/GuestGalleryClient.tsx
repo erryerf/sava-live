@@ -189,11 +189,21 @@ export default function GuestGalleryClient({ slug }: GuestGalleryClientProps) {
     }
   };
 
+  const isLight = event?.gallery_theme === 'light';
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-neutral-950 text-white flex flex-col items-center justify-center gap-3">
+      <div
+        className={`min-h-screen flex flex-col items-center justify-center gap-3 ${
+          isLight ? 'bg-[#F9F8F6] text-stone-900' : 'bg-neutral-950 text-white'
+        }`}
+      >
         <Loader2 className="w-8 h-8 animate-spin text-amber-400" />
-        <p className="text-sm text-neutral-400 font-medium">
+        <p
+          className={`text-sm font-medium ${
+            isLight ? 'text-stone-500' : 'text-neutral-400'
+          }`}
+        >
           Memuat galeri acara...
         </p>
       </div>
@@ -204,7 +214,11 @@ export default function GuestGalleryClient({ slug }: GuestGalleryClientProps) {
     lightboxIndex !== null ? currentPhotos[lightboxIndex] : null;
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 pb-28">
+    <div
+      className={`min-h-screen pb-28 transition-colors duration-200 ${
+        isLight ? 'bg-[#F9F8F6] text-stone-900' : 'bg-neutral-950 text-neutral-100'
+      }`}
+    >
       {toast && (
         <div className="fixed top-6 inset-x-4 z-50 flex justify-center pointer-events-none">
           <div
@@ -232,6 +246,7 @@ export default function GuestGalleryClient({ slug }: GuestGalleryClientProps) {
         onSelectTab={setActiveTab}
         photographerCount={photosByTab.photographer.length}
         guestCount={photosByTab.guest.length}
+        galleryTheme={event?.gallery_theme || 'dark'}
         archiveInfo={archiveInfo}
       />
 
@@ -241,14 +256,24 @@ export default function GuestGalleryClient({ slug }: GuestGalleryClientProps) {
           <div className="mb-4 space-y-2">
             <div className="flex items-center justify-between gap-2">
               {/* Category Segment: Semua vs Foto Saya */}
-              <div className="flex items-center gap-1 p-1 rounded-2xl bg-neutral-900/90 border border-white/10 text-xs shadow-inner">
+              <div
+                className={`flex items-center gap-1 p-1 rounded-2xl text-xs shadow-inner ${
+                  isLight
+                    ? 'bg-stone-200/80 border border-stone-300/70'
+                    : 'bg-neutral-900/90 border border-white/10'
+                }`}
+              >
                 <button
                   type="button"
                   onClick={() => setGuestViewFilter('all')}
                   className={`px-3 py-1.5 rounded-xl font-bold transition-all ${
                     guestViewFilter === 'all'
-                      ? 'bg-white text-neutral-950 shadow-md'
-                      : 'text-neutral-400 hover:text-white'
+                      ? isLight
+                        ? 'bg-white text-stone-900 shadow-sm'
+                        : 'bg-white text-neutral-950 shadow-md'
+                      : isLight
+                        ? 'text-stone-600 hover:text-stone-900'
+                        : 'text-neutral-400 hover:text-white'
                   }`}
                 >
                   Semua ({photosByTab.guest.length})
@@ -259,7 +284,9 @@ export default function GuestGalleryClient({ slug }: GuestGalleryClientProps) {
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold transition-all ${
                     guestViewFilter === 'my_photos'
                       ? 'text-neutral-950 shadow-md scale-[1.02]'
-                      : 'text-neutral-400 hover:text-white'
+                      : isLight
+                        ? 'text-stone-600 hover:text-stone-900'
+                        : 'text-neutral-400 hover:text-white'
                   }`}
                   style={
                     guestViewFilter === 'my_photos'
@@ -274,19 +301,31 @@ export default function GuestGalleryClient({ slug }: GuestGalleryClientProps) {
 
               {/* Minimalist Search Input */}
               <div className="relative flex-1 max-w-[170px] sm:max-w-[210px]">
-                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+                <Search
+                  className={`w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none ${
+                    isLight ? 'text-stone-400' : 'text-neutral-400'
+                  }`}
+                />
                 <input
                   type="text"
                   placeholder="Cari nama..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-7 py-1.5 rounded-xl bg-neutral-900/90 border border-white/10 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-white/30 transition-all"
+                  className={`w-full pl-8 pr-7 py-1.5 rounded-xl border text-xs transition-all focus:outline-none ${
+                    isLight
+                      ? 'bg-white border-stone-300/80 text-stone-900 placeholder-stone-400 focus:border-stone-500 shadow-sm'
+                      : 'bg-neutral-900/90 border border-white/10 text-white placeholder-neutral-500 focus:border-white/30'
+                  }`}
                 />
                 {searchQuery && (
                   <button
                     type="button"
                     onClick={() => setSearchQuery('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white p-0.5"
+                    className={`absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 ${
+                      isLight
+                        ? 'text-stone-400 hover:text-stone-700'
+                        : 'text-neutral-400 hover:text-white'
+                    }`}
                   >
                     <X className="w-3 h-3" />
                   </button>
@@ -296,14 +335,18 @@ export default function GuestGalleryClient({ slug }: GuestGalleryClientProps) {
 
             {/* Active Query Info */}
             {searchQuery && (
-              <div className="text-[11px] text-neutral-400 flex items-center justify-between px-1">
+              <div
+                className={`text-[11px] flex items-center justify-between px-1 ${
+                  isLight ? 'text-stone-500' : 'text-neutral-400'
+                }`}
+              >
                 <span>
                   Hasil pencarian &ldquo;{searchQuery}&rdquo;: {currentPhotos.length} foto
                 </span>
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
-                  className="text-amber-400 hover:underline font-medium"
+                  className="text-amber-500 hover:underline font-medium"
                 >
                   Reset
                 </button>
@@ -313,12 +356,22 @@ export default function GuestGalleryClient({ slug }: GuestGalleryClientProps) {
         )}
 
         {currentPhotos.length === 0 ? (
-          <div className="py-16 px-4 text-center rounded-3xl border border-dashed border-white/15 bg-neutral-900/40">
+          <div
+            className={`py-16 px-4 text-center rounded-3xl border border-dashed ${
+              isLight
+                ? 'bg-white/80 border-stone-300/80 shadow-sm'
+                : 'bg-neutral-900/40 border-white/15'
+            }`}
+          >
             <Sparkles
               className="w-9 h-9 mx-auto mb-2.5"
               style={{ color: themeColor }}
             />
-            <p className="text-sm font-bold text-white">
+            <p
+              className={`text-sm font-bold ${
+                isLight ? 'text-stone-900' : 'text-white'
+              }`}
+            >
               {guestViewFilter === 'my_photos'
                 ? 'Anda belum memiliki foto di galeri ini'
                 : searchQuery
@@ -327,7 +380,11 @@ export default function GuestGalleryClient({ slug }: GuestGalleryClientProps) {
                     ? 'Menanti foto pertama dari tim fotografer'
                     : 'Belum ada kiriman foto dari tamu'}
             </p>
-            <p className="text-xs text-neutral-400 mt-1 max-w-sm mx-auto">
+            <p
+              className={`text-xs mt-1 max-w-sm mx-auto ${
+                isLight ? 'text-stone-500' : 'text-neutral-400'
+              }`}
+            >
               {guestViewFilter === 'my_photos'
                 ? 'Bagikan momen Anda sekarang untuk langsung melihat koleksi foto Anda di sini.'
                 : searchQuery
@@ -358,10 +415,14 @@ export default function GuestGalleryClient({ slug }: GuestGalleryClientProps) {
                 <div
                   key={photo.id}
                   onClick={() => setLightboxIndex(index)}
-                  className={`break-inside-avoid relative group rounded-2xl overflow-hidden bg-neutral-900 border shadow-lg cursor-pointer active:scale-[0.98] transition-all ${
+                  className={`break-inside-avoid relative group rounded-2xl overflow-hidden border shadow-lg cursor-pointer active:scale-[0.98] transition-all ${
+                    isLight
+                      ? 'bg-white border-stone-200/90'
+                      : 'bg-neutral-900 border-white/10 hover:border-white/20'
+                  } ${
                     isMyPhoto
-                      ? 'border-amber-400/80 ring-2 ring-amber-400/25'
-                      : 'border-white/10 hover:border-white/20'
+                      ? 'border-amber-400 ring-2 ring-amber-400/30'
+                      : ''
                   }`}
                 >
                   <img
@@ -405,7 +466,11 @@ export default function GuestGalleryClient({ slug }: GuestGalleryClientProps) {
               type="button"
               onClick={handleLoadMore}
               disabled={loadingMore}
-              className="px-5 py-2.5 rounded-full text-xs font-bold bg-neutral-900 hover:bg-neutral-800 border border-white/15 text-neutral-200 flex items-center gap-2"
+              className={`px-5 py-2.5 rounded-full text-xs font-bold border flex items-center gap-2 transition-colors ${
+                isLight
+                  ? 'bg-white hover:bg-stone-50 border-stone-300/80 text-stone-800 shadow-sm'
+                  : 'bg-neutral-900 hover:bg-neutral-800 border-white/15 text-neutral-200'
+              }`}
             >
               {loadingMore && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               Tampilkan foto lainnya

@@ -89,6 +89,7 @@ export async function createAdminEvent(payload: {
   header_image_key?: string;
   custom_frame_key?: string;
   status?: EventStatus;
+  gallery_theme?: 'dark' | 'light';
 }): Promise<AdminEvent> {
   const res = await fetch(`${API_BASE_URL}/admin/events`, {
     method: 'POST',
@@ -119,6 +120,7 @@ export async function updateAdminEvent(
     header_image_key: string | null;
     custom_frame_key: string | null;
     status: EventStatus;
+    gallery_theme?: 'dark' | 'light';
   }>,
 ): Promise<AdminEvent> {
   const res = await fetch(`${API_BASE_URL}/admin/events/${encodeURIComponent(id)}`, {

@@ -54,6 +54,7 @@ export function CreateEventWizardModal({
     theme_color: '#D4AF37',
     guest_upload_limit: 5,
     require_guest_moderation: false,
+    gallery_theme: 'dark' as 'dark' | 'light',
   });
 
   const qrCanvasRef = useRef<HTMLDivElement | null>(null);
@@ -74,6 +75,7 @@ export function CreateEventWizardModal({
         theme_color: '#D4AF37',
         guest_upload_limit: 5,
         require_guest_moderation: false,
+        gallery_theme: 'dark',
       });
     }
   }, [open]);
@@ -125,6 +127,7 @@ export function CreateEventWizardModal({
           theme_color: formData.theme_color,
           header_image_url: headerPreviewDataUrl || null,
           guest_upload_limit: formData.guest_upload_limit,
+          gallery_theme: formData.gallery_theme,
           is_upload_allowed: true,
           start_time: new Date(formData.start_time).toISOString(),
           end_time: new Date(formData.end_time).toISOString(),
@@ -161,6 +164,7 @@ export function CreateEventWizardModal({
           status: 'active',
           is_upload_allowed: true,
           require_guest_moderation: formData.require_guest_moderation,
+          gallery_theme: formData.gallery_theme,
         });
         const updatedList = [
           demoCreated,
@@ -183,6 +187,7 @@ export function CreateEventWizardModal({
         theme_color: formData.theme_color,
         guest_upload_limit: Number(formData.guest_upload_limit),
         require_guest_moderation: formData.require_guest_moderation,
+        gallery_theme: formData.gallery_theme,
         status: 'active',
       });
 
@@ -192,6 +197,7 @@ export function CreateEventWizardModal({
         theme_color: created.theme_color,
         header_image_url: headerPreviewDataUrl || created.header_image_url || null,
         guest_upload_limit: Number(formData.guest_upload_limit),
+        gallery_theme: formData.gallery_theme,
         status: created.status,
         is_upload_allowed: created.is_upload_allowed,
         require_guest_moderation: formData.require_guest_moderation,
@@ -407,6 +413,56 @@ export function CreateEventWizardModal({
             </div>
 
             <div>
+              <label className="block text-xs font-medium text-neutral-300 mb-1.5">
+                Tema Tampilan Galeri Tamu
+              </label>
+              <div className="grid grid-cols-2 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFormData({ ...formData, gallery_theme: 'dark' })
+                  }
+                  className={`p-3 rounded-xl border text-left flex items-start gap-2.5 transition-all ${
+                    formData.gallery_theme === 'dark'
+                      ? 'border-amber-400 bg-amber-400/10 text-white shadow-lg'
+                      : 'border-white/10 bg-[#0B0B0A] text-neutral-400 hover:border-white/25'
+                  }`}
+                >
+                  <span className="text-lg">🌙</span>
+                  <div className="space-y-0.5">
+                    <div className="text-xs font-semibold text-white">
+                      Obsidian Dark
+                    </div>
+                    <div className="text-[10px] text-neutral-400 leading-tight">
+                      Resepsi malam &amp; ballroom mewah
+                    </div>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFormData({ ...formData, gallery_theme: 'light' })
+                  }
+                  className={`p-3 rounded-xl border text-left flex items-start gap-2.5 transition-all ${
+                    formData.gallery_theme === 'light'
+                      ? 'border-amber-400 bg-amber-400/10 text-white shadow-lg'
+                      : 'border-white/10 bg-[#0B0B0A] text-neutral-400 hover:border-white/25'
+                  }`}
+                >
+                  <span className="text-lg">☀️</span>
+                  <div className="space-y-0.5">
+                    <div className="text-xs font-semibold text-white">
+                      Ivory Alabaster
+                    </div>
+                    <div className="text-[10px] text-neutral-400 leading-tight">
+                      Akad pagi &amp; garden party cerah
+                    </div>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            <div>
               <label className="block text-xs font-medium text-neutral-300 mb-1">
                 Foto Sampul Galeri (JPG/PNG)
               </label>
@@ -612,6 +668,7 @@ export function EditEventModal({
     theme_color: '#D4AF37',
     guest_upload_limit: 5,
     require_guest_moderation: false,
+    gallery_theme: 'dark' as 'dark' | 'light',
   });
 
   useEffect(() => {
@@ -651,6 +708,9 @@ export function EditEventModal({
           ? localCustom.guest_upload_limit
           : (editingEvent.guest_upload_limit ?? 5),
       require_guest_moderation: Boolean(editingEvent.require_guest_moderation),
+      gallery_theme: (localCustom?.gallery_theme ||
+        editingEvent.gallery_theme ||
+        'dark') as 'dark' | 'light',
     });
   }, [editingEvent]);
 
@@ -689,6 +749,7 @@ export function EditEventModal({
         status: editFormData.status,
         is_upload_allowed: editFormData.status === 'active',
         require_guest_moderation: editFormData.require_guest_moderation,
+        gallery_theme: editFormData.gallery_theme,
       });
 
       if (isDemoMode) {
@@ -707,6 +768,7 @@ export function EditEventModal({
           custom_frame_key: frameKey,
           guest_upload_limit: Number(editFormData.guest_upload_limit),
           require_guest_moderation: editFormData.require_guest_moderation,
+          gallery_theme: editFormData.gallery_theme,
           updated_at: new Date().toISOString(),
           ftp_credentials: editingEvent.ftp_credentials
             ? {
@@ -738,6 +800,7 @@ export function EditEventModal({
         theme_color: editFormData.theme_color,
         guest_upload_limit: Number(editFormData.guest_upload_limit),
         require_guest_moderation: editFormData.require_guest_moderation,
+        gallery_theme: editFormData.gallery_theme,
         custom_frame_key: isFrameCleared ? null : undefined,
       });
 
@@ -965,6 +1028,56 @@ export function EditEventModal({
               }
               className="w-full px-3 py-2 rounded-md bg-[#0B0B0A] border border-white/[0.09] text-xs text-[#F5F4F0]"
             />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-neutral-300 mb-1.5">
+            Tema Tampilan Galeri Tamu
+          </label>
+          <div className="grid grid-cols-2 gap-2.5">
+            <button
+              type="button"
+              onClick={() =>
+                setEditFormData({ ...editFormData, gallery_theme: 'dark' })
+              }
+              className={`p-3 rounded-xl border text-left flex items-start gap-2.5 transition-all ${
+                editFormData.gallery_theme === 'dark'
+                  ? 'border-amber-400 bg-amber-400/10 text-white shadow-lg'
+                  : 'border-white/10 bg-[#0B0B0A] text-neutral-400 hover:border-white/25'
+              }`}
+            >
+              <span className="text-lg">🌙</span>
+              <div className="space-y-0.5">
+                <div className="text-xs font-semibold text-white">
+                  Obsidian Dark
+                </div>
+                <div className="text-[10px] text-neutral-400 leading-tight">
+                  Resepsi malam &amp; ballroom mewah
+                </div>
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                setEditFormData({ ...editFormData, gallery_theme: 'light' })
+              }
+              className={`p-3 rounded-xl border text-left flex items-start gap-2.5 transition-all ${
+                editFormData.gallery_theme === 'light'
+                  ? 'border-amber-400 bg-amber-400/10 text-white shadow-lg'
+                  : 'border-white/10 bg-[#0B0B0A] text-neutral-400 hover:border-white/25'
+              }`}
+            >
+              <span className="text-lg">☀️</span>
+              <div className="space-y-0.5">
+                <div className="text-xs font-semibold text-white">
+                  Ivory Alabaster
+                </div>
+                <div className="text-[10px] text-neutral-400 leading-tight">
+                  Akad pagi &amp; garden party cerah
+                </div>
+              </div>
+            </button>
           </div>
         </div>
 

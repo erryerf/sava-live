@@ -15,6 +15,7 @@ interface GuestGalleryHeaderProps {
   onSelectTab: (tab: PhotoSource) => void;
   photographerCount: number;
   guestCount: number;
+  galleryTheme?: 'dark' | 'light';
   archiveInfo: {
     status: ArchiveStatus;
     download_url: string | null;
@@ -51,8 +52,10 @@ export default function GuestGalleryHeader({
   onSelectTab,
   photographerCount,
   guestCount,
+  galleryTheme = 'dark',
   archiveInfo,
 }: GuestGalleryHeaderProps) {
+  const isLight = galleryTheme === 'light';
   return (
     <>
       <header className="sticky top-0 z-30 shadow-2xl">
@@ -124,16 +127,30 @@ export default function GuestGalleryHeader({
           </div>
         </div>
 
-        <div className="bg-neutral-950/90 backdrop-blur-xl border-b border-white/10">
+        <div
+          className={
+            isLight
+              ? 'bg-[#F9F8F6]/95 backdrop-blur-xl border-b border-stone-200/80'
+              : 'bg-neutral-950/90 backdrop-blur-xl border-b border-white/10'
+          }
+        >
           <div className="max-w-2xl mx-auto px-3.5 py-2.5">
-            <div className="grid grid-cols-2 p-1 rounded-2xl bg-neutral-900/95 border border-white/10 shadow-inner">
+            <div
+              className={`grid grid-cols-2 p-1 rounded-2xl shadow-inner ${
+                isLight
+                  ? 'bg-stone-200/80 border border-stone-300/70'
+                  : 'bg-neutral-900/95 border border-white/10'
+              }`}
+            >
               <button
                 type="button"
                 onClick={() => onSelectTab('guest')}
                 className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 ${
                   activeTab === 'guest'
                     ? 'text-neutral-950 shadow-lg scale-[1.01]'
-                    : 'text-neutral-400 hover:text-white'
+                    : isLight
+                      ? 'text-stone-600 hover:text-stone-900'
+                      : 'text-neutral-400 hover:text-white'
                 }`}
                 style={
                   activeTab === 'guest'
@@ -147,7 +164,9 @@ export default function GuestGalleryHeader({
                   className={`text-[11px] px-2 py-0.5 rounded-full ${
                     activeTab === 'guest'
                       ? 'bg-black/20 text-neutral-950 font-extrabold'
-                      : 'bg-white/10 text-neutral-300'
+                      : isLight
+                        ? 'bg-stone-300/80 text-stone-700'
+                        : 'bg-white/10 text-neutral-300'
                   }`}
                 >
                   {guestCount}
@@ -160,7 +179,9 @@ export default function GuestGalleryHeader({
                 className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 ${
                   activeTab === 'photographer'
                     ? 'text-neutral-950 shadow-lg scale-[1.01]'
-                    : 'text-neutral-400 hover:text-white'
+                    : isLight
+                      ? 'text-stone-600 hover:text-stone-900'
+                      : 'text-neutral-400 hover:text-white'
                 }`}
                 style={
                   activeTab === 'photographer'
@@ -174,7 +195,9 @@ export default function GuestGalleryHeader({
                   className={`text-[11px] px-2 py-0.5 rounded-full ${
                     activeTab === 'photographer'
                       ? 'bg-black/20 text-neutral-950 font-extrabold'
-                      : 'bg-white/10 text-neutral-300'
+                      : isLight
+                        ? 'bg-stone-300/80 text-stone-700'
+                        : 'bg-white/10 text-neutral-300'
                   }`}
                 >
                   {photographerCount}
@@ -187,7 +210,13 @@ export default function GuestGalleryHeader({
 
       {isArchived && (
         <div className="max-w-2xl mx-auto px-3.5 pt-4">
-          <div className="p-4 rounded-2xl bg-neutral-900/95 border border-white/15 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xl">
+          <div
+            className={`p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xl ${
+              isLight
+                ? 'bg-white border border-stone-200/90 text-stone-900'
+                : 'bg-neutral-900/95 border border-white/15'
+            }`}
+          >
             <div className="flex items-center gap-3 text-center sm:text-left">
               <div
                 className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 text-neutral-950 shadow-md"
@@ -196,10 +225,18 @@ export default function GuestGalleryHeader({
                 <FileArchive className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-sm font-bold text-white">
+                <p
+                  className={`text-sm font-bold ${
+                    isLight ? 'text-stone-900' : 'text-white'
+                  }`}
+                >
                   Unduh Arsip Dokumentasi (.ZIP)
                 </p>
-                <p className="text-xs text-neutral-400">
+                <p
+                  className={`text-xs ${
+                    isLight ? 'text-stone-500' : 'text-neutral-400'
+                  }`}
+                >
                   Tersusun rapi dalam folder Kamera Utama &amp; Galeri Tamu
                 </p>
               </div>

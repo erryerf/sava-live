@@ -203,6 +203,7 @@ export interface LocalEventCustomization {
   status?: PublicEvent['status'];
   is_upload_allowed?: boolean;
   require_guest_moderation?: boolean;
+  gallery_theme?: 'dark' | 'light';
 }
 
 export function getLocalEventCustomization(
@@ -228,6 +229,7 @@ export function getLocalEventCustomization(
         status?: PublicEvent['status'];
         is_upload_allowed?: boolean;
         require_guest_moderation?: boolean;
+        gallery_theme?: 'dark' | 'light';
       }>;
       const matched = demoList.find(
         (item) => item.slug?.toLowerCase() === slug.toLowerCase(),
@@ -245,6 +247,7 @@ export function getLocalEventCustomization(
           status: matched.status,
           is_upload_allowed: matched.is_upload_allowed,
           require_guest_moderation: matched.require_guest_moderation,
+          gallery_theme: matched.gallery_theme,
         };
       }
     }
