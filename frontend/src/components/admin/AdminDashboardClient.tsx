@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, Eye, EyeOff } from 'lucide-react';
-import { fetchAdminEvents } from '@/lib/admin-api';
+import { fetchAdminEvents, getAdminToken } from '@/lib/admin-api';
 import { AdminEvent, EventStatus } from '@/lib/types';
 import AdminSidebar, { AdminNavSection } from './AdminSidebar';
 import {
@@ -108,7 +108,10 @@ export default function AdminDashboardClient() {
       if (localStored.length > 0) {
         await fetch('/v1/admin/events/sync', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${getAdminToken()}`,
+          },
           body: JSON.stringify({ events: localStored }),
         }).catch(() => {});
       }

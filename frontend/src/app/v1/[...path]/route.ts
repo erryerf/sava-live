@@ -60,6 +60,26 @@ function toPublicEvent(evt: AdminEvent): PublicEvent {
   };
 }
 
+function isAuthorizedAdmin(req: NextRequest): boolean {
+  const authHeader = req.headers.get('authorization') || '';
+  const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+  const validSecret =
+    process.env.ADMIN_API_TOKEN ||
+    process.env.NEXT_PUBLIC_ADMIN_TOKEN ||
+    'sava-admin-secret-token-2026';
+  return Boolean(token && token === validSecret);
+}
+
+function unauthorizedResponse() {
+  return NextResponse.json(
+    {
+      success: false,
+      message: 'Akses ditolak. Token otentikasi admin diperlukan.',
+    },
+    { status: 401 },
+  );
+}
+
 export async function GET(
   req: NextRequest,
   context: { params: Promise<{ path: string[] }> },
@@ -70,6 +90,10 @@ export async function GET(
   const url = new URL(req.url);
 
   try {
+    // Guard all GET /v1/admin/* routes
+    if (path[0] === 'admin' && !isAuthorizedAdmin(req)) {
+      return unauthorizedResponse();
+    }
     // GET /v1/photos/asset/... (Streaming directly from Cloudflare R2 with global edge caching)
     if (path.length >= 2 && path[0] === 'photos' && path[1] === 'asset') {
       const fileKey = path.slice(2).join('/');
@@ -210,6 +234,10 @@ export async function POST(
   const body = await req.json().catch(() => ({}));
 
   try {
+    // Guard all POST /v1/admin/* routes
+    if (path[0] === 'admin' && !isAuthorizedAdmin(req)) {
+      return unauthorizedResponse();
+    }
     // POST /v1/admin/events/sync (Sync localStorage demo events to Neon PostgreSQL)
     if (path.length === 3 && path[0] === 'admin' && path[1] === 'events' && path[2] === 'sync') {
       const clientEvents = Array.isArray(body.events) ? (body.events as AdminEvent[]) : [];
@@ -400,11 +428,53 @@ export async function POST(
     if (path.length === 4 && path[0] === 'events' && path[2] === 'photos' && path[3] === 'presigned-url') {
       const slug = decodeURIComponent(path[1]).toLowerCase();
       const source = body.source === 'photographer' ? 'photographer' : 'guest';
+
+      // 1. Verify Event status & upload allowance
+      const evtRes = await db.query(
+        'SELECT status, guest_upload_limit FROM events WHERE LOWER(slug) = LOWER($1) LIMIT 1',
+        [slug],
+      );
+      if (evtRes.rows.length === 0) {
+        return NextResponse.json({ success: false, message: 'Acara tidak ditemukan.' }, { status: 404 });
+      }
+      if (evtRes.rows[0].status === 'archived') {
+        return NextResponse.json(
+          { success: false, message: 'Acara sudah diarsipkan. Pengunggahan foto telah ditutup.' },
+          { status: 403 },
+        );
+      }
+
+      // 2. Validate MIME type
+      const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+      const contentType = (body.content_type || 'image/jpeg').toLowerCase().trim();
+      if (!allowedMimes.includes(contentType)) {
+        return NextResponse.json(
+          { success: false, message: 'Format file tidak didukung. Harap unggah foto JPG/PNG/WebP.' },
+          { status: 400 },
+        );
+      }
+
+      // 3. Server-side Guest Quota Enforcement
+      if (source === 'guest' && body.guest_identifier) {
+        const countRes = await db.query(
+          'SELECT COUNT(*) FROM photos WHERE LOWER(event_slug) = LOWER($1) AND guest_identifier = $2',
+          [slug, String(body.guest_identifier)],
+        );
+        const uploadedCount = parseInt(countRes.rows[0]?.count || '0', 10);
+        const limit = Number(evtRes.rows[0].guest_upload_limit ?? 5);
+        if (uploadedCount >= limit) {
+          return NextResponse.json(
+            { success: false, message: `Batas kuota unggah foto Anda (${limit} foto) telah tercapai.` },
+            { status: 429 },
+          );
+        }
+      }
+
       const fileKey = `events/${slug}/${source}/${Date.now()}-${Math.random().toString(36).slice(2, 7)}.jpg`;
       try {
         const uploadUrl = await createR2PresignedUploadUrl(
           fileKey,
-          body.content_type || 'image/jpeg',
+          contentType,
           300,
         );
         return NextResponse.json({
@@ -433,10 +503,21 @@ export async function POST(
       const slug = decodeURIComponent(path[1]).toLowerCase();
       const photoId = `photo-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
       const fileKey = String(body.file_key || '');
+
+      // Path containment validation
+      if (fileKey && !fileKey.startsWith(`events/${slug}/`)) {
+        return NextResponse.json({ success: false, message: 'Invalid file key scope.' }, { status: 400 });
+      }
+
       const url = fileKey ? getR2PublicUrl(fileKey) : (body.data_url || 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=900&q=85');
       const source = String(body.guest_identifier || '').startsWith('admin_photographer_')
         ? 'photographer'
         : 'guest';
+
+      // Sanitize guest name against HTML/script injection
+      const sanitizedGuestName = body.guest_name
+        ? String(body.guest_name).replace(/<[^>]*>?/gm, '').slice(0, 60).trim()
+        : null;
 
       await db.query(
         `
@@ -450,7 +531,7 @@ export async function POST(
           url,
           source,
           body.guest_identifier || null,
-          body.guest_name || null,
+          sanitizedGuestName,
           'approved',
         ],
       );
@@ -460,7 +541,7 @@ export async function POST(
         url,
         thumbnail_url: url,
         source: source as 'photographer' | 'guest',
-        guest_name: body.guest_name || null,
+        guest_name: sanitizedGuestName,
         guest_identifier: body.guest_identifier || null,
         created_at: new Date().toISOString(),
       };
@@ -558,6 +639,10 @@ export async function PATCH(
   const body = await req.json().catch(() => ({}));
 
   try {
+    // Guard all PATCH /v1/admin/* routes
+    if (path[0] === 'admin' && !isAuthorizedAdmin(req)) {
+      return unauthorizedResponse();
+    }
     // PATCH /v1/admin/events/:id
     if (path.length === 3 && path[0] === 'admin' && path[1] === 'events') {
       const id = path[2];
@@ -629,7 +714,7 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   context: { params: Promise<{ path: string[] }> },
 ) {
   await ensureDbSchema();
@@ -637,6 +722,10 @@ export async function DELETE(
   const { path } = await context.params;
 
   try {
+    // Guard all DELETE /v1/admin/* routes
+    if (path[0] === 'admin' && !isAuthorizedAdmin(req)) {
+      return unauthorizedResponse();
+    }
     // DELETE /v1/admin/events/:id
     if (path.length === 3 && path[0] === 'admin' && path[1] === 'events') {
       await db.query('DELETE FROM events WHERE id = $1 OR slug = $1', [path[2]]);
