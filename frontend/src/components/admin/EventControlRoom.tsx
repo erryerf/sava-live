@@ -233,6 +233,49 @@ export default function EventControlRoom({
     isDemoMode,
   ]);
 
+  const createSimulatedTestShotFile = async (slug: string): Promise<File> => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1600;
+    canvas.height = 1066;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Canvas tidak didukung');
+
+    const grad = ctx.createLinearGradient(0, 0, 1600, 1066);
+    grad.addColorStop(0, '#1c1917');
+    grad.addColorStop(0.5, '#292524');
+    grad.addColorStop(1, '#0c0a09');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 1600, 1066);
+
+    ctx.beginPath();
+    ctx.arc(800, 533, 380, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(212, 175, 55, 0.4)';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+
+    ctx.fillStyle = '#D4AF37';
+    ctx.font = 'italic 40px Georgia, serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Live Auto-Transfer Shot', 800, 450);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 64px Georgia, serif';
+    ctx.fillText(`Kamera Fotografer (${slug})`, 800, 545);
+
+    ctx.fillStyle = '#a8a29e';
+    ctx.font = '28px sans-serif';
+    const timeStr = new Date().toLocaleTimeString('id-ID');
+    ctx.fillText(`Simulasi Bidikan Otomatis • ${timeStr}`, 800, 630);
+
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.88),
+    );
+    if (!blob) throw new Error('Pembuatan gambar simulasi gagal');
+    return new File([blob], `DSC_${Date.now().toString().slice(-4)}.jpg`, {
+      type: 'image/jpeg',
+    });
+  };
+
   const processSinglePhotographerFile = async (file: File) => {
     // Compress under 2MB while keeping 2.5K high resolution for live wall & prints
     const optimizedFile = await compressImageUnder2MB(file);
@@ -795,19 +838,37 @@ export default function EventControlRoom({
               onClick={async () => {
                 setSimulatingShot(true);
                 try {
-                  const res = await fetch(
-                    `http://localhost:3001/v1/bridge-test-shot/${encodeURIComponent(selectedEvent.slug)}`,
-                    { method: 'POST' },
-                  );
-                  if (res.ok) {
-                    showToast(
-                      'Jepretan uji coba berhasil dikirim ke layar.',
+                  let handled = false;
+                  try {
+                    const res = await fetch(
+                      `http://localhost:3001/v1/bridge-test-shot/${encodeURIComponent(selectedEvent.slug)}`,
+                      { method: 'POST' },
                     );
-                  } else {
-                    showToast('Gagal menjalankan simulasi kamera.');
+                    if (res.ok) {
+                      showToast(
+                        'Jepretan uji coba berhasil dikirim dari Bridge Server lokal.',
+                      );
+                      handled = true;
+                    }
+                  } catch {
+                    // Local bridge server offline or blocked by browser HTTPS Mixed Content
                   }
-                } catch {
-                  showToast('Server Bridge lokal belum aktif.');
+
+                  if (!handled) {
+                    // Cloud / fallback: create crisp simulated camera shot and push to Live Wall & Gallery
+                    const testFile = await createSimulatedTestShotFile(
+                      selectedEvent.slug,
+                    );
+                    await processSinglePhotographerFile(testFile);
+                    showToast(
+                      'Simulasi bidikan kamera berhasil dikirim ke Live Wall! 📸 (Catatan: Untuk FTP kamera asli di venue, jalankan node live-camera-server.js)',
+                    );
+                  }
+                } catch (err) {
+                  showToast(
+                    (err as Error).message ||
+                      'Gagal menjalankan simulasi kamera.',
+                  );
                 } finally {
                   setSimulatingShot(false);
                 }
