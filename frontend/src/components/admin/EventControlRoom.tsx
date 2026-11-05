@@ -151,6 +151,9 @@ export default function EventControlRoom({
     }
 
     async function loadBridgeStatus() {
+      if (typeof window === 'undefined' || window.location.hostname !== 'localhost') {
+        return;
+      }
       try {
         const res = await fetch(
           `http://localhost:3001/v1/bridge-status?slug=${encodeURIComponent(selectedEvent.slug)}`,
@@ -673,6 +676,12 @@ export default function EventControlRoom({
     getLocalEventCustomization(selectedEvent.slug)?.custom_frame_url ||
     null;
 
+  const cloudFtpHost =
+    process.env.NEXT_PUBLIC_FTP_HOST ||
+    (typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+      ? window.location.hostname
+      : bridgeStatus?.local_ip || 'ftp.sava-app.cloud');
+
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       {/* Control Room Header */}
@@ -781,15 +790,10 @@ export default function EventControlRoom({
                   <span className="text-neutral-500">Host / IP:</span>
                   <button
                     type="button"
-                    onClick={() =>
-                      copyText(
-                        bridgeStatus?.local_ip || '127.0.0.1',
-                        'IP Server FTP',
-                      )
-                    }
+                    onClick={() => copyText(cloudFtpHost, 'Host Server FTP')}
                     className="text-neutral-200 hover:text-white flex items-center gap-1"
                   >
-                    <span>{bridgeStatus?.local_ip || '127.0.0.1'}</span>
+                    <span>{cloudFtpHost}</span>
                     <Copy className="w-3 h-3 text-neutral-500" />
                   </button>
                 </div>
@@ -855,13 +859,13 @@ export default function EventControlRoom({
                   }
 
                   if (!handled) {
-                    // Cloud / fallback: create crisp simulated camera shot and push to Live Wall & Gallery
+                    // Cloud / standalone: create crisp simulated camera shot and push to Live Wall & Gallery
                     const testFile = await createSimulatedTestShotFile(
                       selectedEvent.slug,
                     );
                     await processSinglePhotographerFile(testFile);
                     showToast(
-                      'Simulasi bidikan kamera berhasil dikirim ke Live Wall! 📸 (Catatan: Untuk FTP kamera asli di venue, jalankan node live-camera-server.js)',
+                      'Bidikan kamera berhasil dikirim ke Live Wall & Galeri! 📸',
                     );
                   }
                 } catch (err) {
