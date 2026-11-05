@@ -37,7 +37,7 @@ export function useGuestGalleryData(slug: string) {
   const [event, setEvent] = useState<PublicEvent | null>(null);
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<PhotoSource>('photographer');
+  const [activeTab, setActiveTab] = useState<PhotoSource>('guest');
 
   const [photosByTab, setPhotosByTab] = useState<
     Record<PhotoSource, PhotoItem[]>
@@ -91,6 +91,10 @@ export function useGuestGalleryData(slug: string) {
       let urlLimit: number | undefined;
       if (typeof window !== 'undefined') {
         const sp = new URLSearchParams(window.location.search);
+        const urlTab = sp.get('tab');
+        if (urlTab === 'photographer' || urlTab === 'guest') {
+          setActiveTab(urlTab);
+        }
         const rawLimit = sp.get('limit');
         if (rawLimit) {
           const parsedLimit = parseInt(rawLimit, 10);

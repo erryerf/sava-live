@@ -129,33 +129,6 @@ export default function GuestGalleryHeader({
             <div className="grid grid-cols-2 p-1 rounded-2xl bg-neutral-900/95 border border-white/10 shadow-inner">
               <button
                 type="button"
-                onClick={() => onSelectTab('photographer')}
-                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 ${
-                  activeTab === 'photographer'
-                    ? 'text-neutral-950 shadow-lg scale-[1.01]'
-                    : 'text-neutral-400 hover:text-white'
-                }`}
-                style={
-                  activeTab === 'photographer'
-                    ? { backgroundColor: themeColor }
-                    : undefined
-                }
-              >
-                <Camera className="w-4 h-4 shrink-0" />
-                <span>Kamera Utama</span>
-                <span
-                  className={`text-[11px] px-2 py-0.5 rounded-full ${
-                    activeTab === 'photographer'
-                      ? 'bg-black/20 text-neutral-950 font-extrabold'
-                      : 'bg-white/10 text-neutral-300'
-                  }`}
-                >
-                  {photographerCount}
-                </span>
-              </button>
-
-              <button
-                type="button"
                 onClick={() => onSelectTab('guest')}
                 className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 ${
                   activeTab === 'guest'
@@ -178,6 +151,33 @@ export default function GuestGalleryHeader({
                   }`}
                 >
                   {guestCount}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onSelectTab('photographer')}
+                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 ${
+                  activeTab === 'photographer'
+                    ? 'text-neutral-950 shadow-lg scale-[1.01]'
+                    : 'text-neutral-400 hover:text-white'
+                }`}
+                style={
+                  activeTab === 'photographer'
+                    ? { backgroundColor: themeColor }
+                    : undefined
+                }
+              >
+                <Camera className="w-4 h-4 shrink-0" />
+                <span>Kamera Utama</span>
+                <span
+                  className={`text-[11px] px-2 py-0.5 rounded-full ${
+                    activeTab === 'photographer'
+                      ? 'bg-black/20 text-neutral-950 font-extrabold'
+                      : 'bg-white/10 text-neutral-300'
+                  }`}
+                >
+                  {photographerCount}
                 </span>
               </button>
             </div>
