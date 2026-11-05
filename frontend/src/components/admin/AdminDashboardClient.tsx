@@ -229,8 +229,8 @@ export default function AdminDashboardClient() {
               <span className="font-display text-3xl font-semibold tracking-[0.08em] text-[#F5F4F0]">
                 SAVA
               </span>
-              <span className="text-[10px] uppercase tracking-[0.26em] text-white/60 font-medium">
-                Live Documentation
+              <span className="text-[10px] uppercase tracking-[0.26em] text-amber-400 font-bold">
+                LIVE
               </span>
             </div>
 
@@ -295,8 +295,8 @@ export default function AdminDashboardClient() {
               <span className="font-display text-2xl font-semibold tracking-[0.08em] text-[#F5F4F0]">
                 SAVA
               </span>
-              <span className="text-[10px] uppercase tracking-[0.22em] text-neutral-500">
-                Studio
+              <span className="text-[10px] uppercase tracking-[0.22em] text-amber-400 font-bold">
+                LIVE
               </span>
             </div>
 
@@ -454,7 +454,7 @@ export default function AdminDashboardClient() {
 
           {/* Bottom Studio Footer */}
           <div className="flex items-center justify-between text-[11px] text-neutral-600 border-t border-white/[0.06] pt-5">
-            <span>&copy; {new Date().getFullYear()} SAVA Studio</span>
+            <span>&copy; {new Date().getFullYear()} SAVA LIVE</span>
             <span className="font-mono">sava-app.cloud</span>
           </div>
         </div>

@@ -16,8 +16,13 @@ const display = Cormorant_Garamond({
 });
 
 export const metadata: Metadata = {
-  title: 'SAVA Live Gallery — Roving Photobooth & Live Wall',
-  description: 'Galeri foto instan real-time untuk acara spesial Anda.',
+  title: 'SAVA LIVE — Live Event Gallery & Moments',
+  description: 'Galeri momen langsung dan dokumentasi instan untuk acara istimewa Anda.',
+  openGraph: {
+    title: 'SAVA LIVE — Live Event Gallery & Moments',
+    description: 'Galeri momen langsung dan dokumentasi instan untuk acara istimewa Anda.',
+    siteName: 'SAVA LIVE',
+  },
 };
 
 export default function RootLayout({

@@ -38,8 +38,8 @@ export default function AdminSidebar({
             <span className="font-display text-2xl font-semibold tracking-[0.06em] text-[#F5F4F0]">
               SAVA
             </span>
-            <span className="text-[10px] uppercase tracking-[0.22em] text-neutral-500 font-medium">
-              Studio
+            <span className="text-[10px] uppercase tracking-[0.22em] text-amber-400 font-bold">
+              LIVE
             </span>
           </div>
         </div>
