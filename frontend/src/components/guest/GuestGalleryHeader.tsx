@@ -60,9 +60,13 @@ export default function GuestGalleryHeader({
     <>
       <header className="sticky top-0 z-30 shadow-2xl">
         <div
-          className="relative overflow-hidden border-b border-white/15"
+          className={`relative overflow-hidden ${
+            isLight ? 'border-b border-stone-200/60' : 'border-b border-white/15'
+          }`}
           style={{
-            background: `linear-gradient(145deg, ${themeColor} 0%, #1A1610 60%, #09090B 100%)`,
+            background: isLight
+              ? `linear-gradient(145deg, ${themeColor}30 0%, #292524 100%)`
+              : `linear-gradient(145deg, ${themeColor} 0%, #1A1610 60%, #09090B 100%)`,
           }}
         >
           {headerImageUrl && (
@@ -70,19 +74,18 @@ export default function GuestGalleryHeader({
               <img
                 src={headerImageUrl}
                 alt={eventName}
-                className="absolute inset-0 w-full h-full object-cover object-center brightness-[0.38] contrast-105 scale-105 pointer-events-none select-none"
+                className={`absolute inset-0 w-full h-full object-cover object-center scale-105 pointer-events-none select-none transition-all duration-300 ${
+                  isLight
+                    ? 'brightness-[0.88] contrast-100'
+                    : 'brightness-[0.75] contrast-105'
+                }`}
               />
               <div
                 className="absolute inset-0 pointer-events-none"
                 style={{
-                  background:
-                    'linear-gradient(180deg, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.52) 55%, rgba(9,9,11,0.92) 100%)',
-                }}
-              />
-              <div
-                className="absolute inset-0 opacity-25 mix-blend-overlay pointer-events-none"
-                style={{
-                  background: `radial-gradient(circle at 50% 0%, ${themeColor}, transparent 70%)`,
+                  background: isLight
+                    ? 'linear-gradient(180deg, rgba(0,0,0,0.32) 0%, rgba(0,0,0,0.18) 50%, rgba(0,0,0,0.48) 100%)'
+                    : 'linear-gradient(180deg, rgba(0,0,0,0.38) 0%, rgba(0,0,0,0.22) 50%, rgba(9,9,11,0.65) 100%)',
                 }}
               />
             </>
