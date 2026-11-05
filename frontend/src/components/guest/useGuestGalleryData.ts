@@ -10,6 +10,8 @@ import {
   getLocalEventCustomization,
   getLocalEventPhotos,
   getLocalGuestUploadCount,
+  getMyUploadedPhotoIds,
+  addMyUploadedPhotoId,
   getOrCreateGuestIdentifier,
   incrementLocalGuestUploadCount,
   requestGuestPresignedUrl,
@@ -413,6 +415,13 @@ export function useGuestGalleryData(slug: string) {
 
         if (confirmed?.data) {
           addLocalEventPhoto(slug, confirmed.data);
+          addMyUploadedPhotoId(slug, confirmed.data.id);
+          if (typeof window !== 'undefined' && guestName.trim()) {
+            window.localStorage.setItem(
+              'sava_saved_guest_name',
+              guestName.trim(),
+            );
+          }
           setPhotosByTab((prev) => ({
             ...prev,
             guest: [
@@ -439,24 +448,49 @@ export function useGuestGalleryData(slug: string) {
     }
   };
 
+  const isPhotoMine = useCallback(
+    (photo: PhotoItem) => {
+      if (
+        guestIdentifier &&
+        photo.guest_identifier &&
+        photo.guest_identifier === guestIdentifier
+      ) {
+        return true;
+      }
+      const myIds = getMyUploadedPhotoIds(slug);
+      if (myIds.has(photo.id)) {
+        return true;
+      }
+      if (typeof window !== 'undefined') {
+        const savedName = window.localStorage.getItem('sava_saved_guest_name');
+        if (
+          savedName &&
+          photo.guest_name &&
+          photo.guest_name.trim().toLowerCase() === savedName.trim().toLowerCase()
+        ) {
+          return true;
+        }
+      }
+      return false;
+    },
+    [slug, guestIdentifier],
+  );
+
   const myPhotosCount = useMemo(() => {
-    if (!guestIdentifier) return 0;
-    return photosByTab.guest.filter(
-      (p) => p.guest_identifier === guestIdentifier,
-    ).length;
-  }, [photosByTab.guest, guestIdentifier]);
+    return photosByTab.guest.filter(isPhotoMine).length;
+  }, [photosByTab.guest, isPhotoMine]);
 
   const filteredGuestPhotos = useMemo(() => {
     let list = photosByTab.guest;
-    if (guestViewFilter === 'my_photos' && guestIdentifier) {
-      list = list.filter((p) => p.guest_identifier === guestIdentifier);
+    if (guestViewFilter === 'my_photos') {
+      list = list.filter(isPhotoMine);
     }
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
       list = list.filter((p) => (p.guest_name || '').toLowerCase().includes(q));
     }
     return list;
-  }, [photosByTab.guest, guestViewFilter, guestIdentifier, searchQuery]);
+  }, [photosByTab.guest, guestViewFilter, isPhotoMine, searchQuery]);
 
   return {
     event,
@@ -479,6 +513,7 @@ export function useGuestGalleryData(slug: string) {
     setSearchQuery,
     myPhotosCount,
     filteredGuestPhotos,
+    isPhotoMine,
   };
 }
 

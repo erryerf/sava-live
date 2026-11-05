@@ -342,6 +342,32 @@ export function removeLocalEventPhoto(slug: string, photoId: string): void {
   }
 }
 
+export function getMyUploadedPhotoIds(slug: string): Set<string> {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const raw = window.localStorage.getItem(`sava_my_photos_${slug}`);
+    if (!raw) return new Set();
+    const arr = JSON.parse(raw);
+    return new Set(Array.isArray(arr) ? arr : []);
+  } catch {
+    return new Set();
+  }
+}
+
+export function addMyUploadedPhotoId(slug: string, id: string): void {
+  if (typeof window === 'undefined' || !id) return;
+  try {
+    const current = getMyUploadedPhotoIds(slug);
+    current.add(id);
+    window.localStorage.setItem(
+      `sava_my_photos_${slug}`,
+      JSON.stringify(Array.from(current)),
+    );
+  } catch {
+    // Ignore storage errors
+  }
+}
+
 export function subscribeLocalLiveEvents(
   slug: string,
   handlers: {

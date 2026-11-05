@@ -39,13 +39,17 @@ export default function GuestGalleryClient({ slug }: GuestGalleryClientProps) {
     setSearchQuery,
     myPhotosCount,
     filteredGuestPhotos,
+    isPhotoMine,
   } = useGuestGalleryData(slug);
 
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [capturedQueue, setCapturedQueue] = useState<CapturedShot[]>([]);
-  const [guestNameInput, setGuestNameInput] = useState('');
+  const [guestNameInput, setGuestNameInput] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    return window.localStorage.getItem('sava_saved_guest_name') || '';
+  });
   const [uploading, setUploading] = useState(false);
 
   const currentPhotos =
@@ -251,13 +255,7 @@ export default function GuestGalleryClient({ slug }: GuestGalleryClientProps) {
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    if (myPhotosCount === 0 && remainingQuota > 0) {
-                      handleFabClick();
-                      return;
-                    }
-                    setGuestViewFilter('my_photos');
-                  }}
+                  onClick={() => setGuestViewFilter('my_photos')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold transition-all ${
                     guestViewFilter === 'my_photos'
                       ? 'text-neutral-950 shadow-md scale-[1.02]'
@@ -354,10 +352,7 @@ export default function GuestGalleryClient({ slug }: GuestGalleryClientProps) {
         ) : (
           <div className="columns-2 sm:columns-3 gap-3 space-y-3">
             {currentPhotos.map((photo, index) => {
-              const isMyPhoto =
-                Boolean(guestIdentifier) &&
-                Boolean(photo.guest_identifier) &&
-                photo.guest_identifier === guestIdentifier;
+              const isMyPhoto = isPhotoMine(photo);
 
               return (
                 <div
