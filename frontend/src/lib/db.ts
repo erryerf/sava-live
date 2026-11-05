@@ -53,6 +53,7 @@ export async function ensureDbSchema(): Promise<void> {
         custom_frame_url TEXT,
         require_guest_moderation BOOLEAN DEFAULT FALSE,
         guest_upload_limit INTEGER DEFAULT 5,
+        gallery_theme VARCHAR(20) DEFAULT 'dark',
         archive_zip_key TEXT,
         archive_download_url TEXT,
         archive_status VARCHAR(20) DEFAULT 'none',
@@ -83,6 +84,8 @@ export async function ensureDbSchema(): Promise<void> {
 
       CREATE INDEX IF NOT EXISTS idx_events_slug ON events(slug);
       CREATE INDEX IF NOT EXISTS idx_photos_event_slug ON photos(event_slug, created_at DESC);
+
+      ALTER TABLE events ADD COLUMN IF NOT EXISTS gallery_theme VARCHAR(20) DEFAULT 'dark';
     `);
 
     // Insert default events if events table is empty

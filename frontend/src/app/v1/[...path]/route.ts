@@ -223,8 +223,8 @@ export async function POST(
           `
           INSERT INTO events (
             id, slug, name, header_subtitle, start_time, end_time, status,
-            theme_color, header_image_url, guest_upload_limit, require_guest_moderation
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            theme_color, header_image_url, guest_upload_limit, require_guest_moderation, gallery_theme
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
           ON CONFLICT (slug) DO UPDATE SET
             name = EXCLUDED.name,
             header_subtitle = EXCLUDED.header_subtitle,
@@ -233,6 +233,7 @@ export async function POST(
             guest_upload_limit = EXCLUDED.guest_upload_limit,
             status = EXCLUDED.status,
             require_guest_moderation = EXCLUDED.require_guest_moderation,
+            gallery_theme = EXCLUDED.gallery_theme,
             updated_at = NOW();
         `,
           [
@@ -247,6 +248,7 @@ export async function POST(
             item.header_image_url || null,
             limit,
             Boolean(item.require_guest_moderation),
+            item.gallery_theme || 'dark',
           ],
         );
 
@@ -285,8 +287,8 @@ export async function POST(
         `
         INSERT INTO events (
           id, slug, name, header_subtitle, start_time, end_time, status,
-          theme_color, header_image_url, guest_upload_limit, require_guest_moderation
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          theme_color, header_image_url, guest_upload_limit, require_guest_moderation, gallery_theme
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         ON CONFLICT (slug) DO UPDATE SET
           name = EXCLUDED.name,
           header_subtitle = EXCLUDED.header_subtitle,
@@ -295,6 +297,7 @@ export async function POST(
           guest_upload_limit = EXCLUDED.guest_upload_limit,
           status = EXCLUDED.status,
           require_guest_moderation = EXCLUDED.require_guest_moderation,
+          gallery_theme = EXCLUDED.gallery_theme,
           updated_at = NOW();
       `,
         [
@@ -309,6 +312,7 @@ export async function POST(
           body.header_image_url || null,
           limit,
           Boolean(body.require_guest_moderation),
+          body.gallery_theme || 'dark',
         ],
       );
 
@@ -575,6 +579,7 @@ export async function PATCH(
           header_image_url = CASE WHEN $8::boolean THEN $9 ELSE header_image_url END,
           custom_frame_key = CASE WHEN $10::boolean THEN $11 ELSE custom_frame_key END,
           custom_frame_url = CASE WHEN $10::boolean THEN $12 ELSE custom_frame_url END,
+          gallery_theme = COALESCE($14, gallery_theme),
           updated_at = NOW()
         WHERE id = $13 OR slug = $13
       `,
@@ -592,6 +597,7 @@ export async function PATCH(
           customFrameKey,
           customFrameUrl,
           id,
+          body.gallery_theme || null,
         ],
       );
 
