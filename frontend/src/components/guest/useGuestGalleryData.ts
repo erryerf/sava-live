@@ -82,6 +82,7 @@ export function useGuestGalleryData(slug: string) {
 
   useEffect(() => {
     let mounted = true;
+    let isLocalOnlyEvent = false;
     setUsedQuota(getLocalGuestUploadCount(slug));
 
     async function loadInitial() {
@@ -116,6 +117,7 @@ export function useGuestGalleryData(slug: string) {
         5;
 
       if (!fetchedEvent) {
+        isLocalOnlyEvent = true;
         setIsDemoMode(true);
         const resolvedStatus = localCustom?.status || 'active';
         setEvent({
@@ -172,16 +174,10 @@ export function useGuestGalleryData(slug: string) {
 
       if (!mounted) return;
 
-      const localPhotos = getLocalEventPhotos(slug);
+      // Real events: server is the single source of truth (no device-only photos)
       setPhotosByTab({
-        photographer: [
-          ...localPhotos.filter((p) => p.source === 'photographer'),
-          ...(mainRes.data || []),
-        ],
-        guest: [
-          ...localPhotos.filter((p) => p.source === 'guest'),
-          ...(guestRes.data || []),
-        ],
+        photographer: mainRes.data || [],
+        guest: guestRes.data || [],
       });
       setCursorByTab({
         photographer: mainRes.meta?.next_cursor ?? null,
@@ -204,29 +200,16 @@ export function useGuestGalleryData(slug: string) {
 
     // Periodic sync every 4s to guarantee real-time updates across cellular and Wi-Fi networks
     const guestSyncTimer = setInterval(async () => {
+      if (isLocalOnlyEvent) return;
       try {
         const [mainRes, guestRes] = await Promise.all([
           fetchEventPhotos(slug, { limit: 30, source: 'photographer' }),
           fetchEventPhotos(slug, { limit: 30, source: 'guest' }),
         ]);
-        if (!mounted) return;
-        setPhotosByTab((prev) => {
-          const mapPhoto = new Map<string, PhotoItem>();
-          for (const p of mainRes.data || []) mapPhoto.set(p.id, p);
-          for (const p of prev.photographer) {
-            if (!mapPhoto.has(p.id)) mapPhoto.set(p.id, p);
-          }
-
-          const mapGuest = new Map<string, PhotoItem>();
-          for (const p of guestRes.data || []) mapGuest.set(p.id, p);
-          for (const p of prev.guest) {
-            if (!mapGuest.has(p.id)) mapGuest.set(p.id, p);
-          }
-
-          return {
-            photographer: Array.from(mapPhoto.values()),
-            guest: Array.from(mapGuest.values()),
-          };
+        if (!mounted || !mainRes.success || !guestRes.success) return;
+        setPhotosByTab({
+          photographer: mainRes.data || [],
+          guest: guestRes.data || [],
         });
       } catch {
         // Ignore network hiccup

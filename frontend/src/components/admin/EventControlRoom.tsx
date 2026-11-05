@@ -130,21 +130,13 @@ export default function EventControlRoom({
     );
 
     async function loadControlRoomPhotos() {
-      try {
-        const list = await fetchAdminEventPhotos(selectedEvent.id || selectedEvent.slug);
-        const localPhotos = getLocalEventPhotos(selectedEvent.slug);
-        const map = new Map<string, PhotoItem>();
-        for (const p of list || []) map.set(p.id, p);
-        for (const p of localPhotos) {
-          if (!map.has(p.id)) map.set(p.id, p);
-        }
-        const merged = Array.from(map.values());
-        if (merged.length > 0 || selectedEvent.slug !== 'budi-ani') {
-          setEventPhotos(merged);
-          return;
-        }
-      } catch (err) {
-        console.warn('Gagal memuat foto server:', err);
+      if (!isDemoMode) {
+        // Real events: show exactly what the server has (same as guests see)
+        const list = await fetchAdminEventPhotos(
+          selectedEvent.id || selectedEvent.slug,
+        ).catch(() => null);
+        if (list) setEventPhotos(list);
+        return;
       }
 
       const localPhotos = getLocalEventPhotos(selectedEvent.slug);
