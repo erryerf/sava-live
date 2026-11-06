@@ -115,3 +115,114 @@ export async function generatePolaroidDataUrl(
     reader.readAsDataURL(blob);
   });
 }
+
+function loadImage(src: File | string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Gagal memuat gambar'));
+    if (typeof src === 'string') {
+      img.src = src;
+    } else {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          img.src = reader.result;
+        } else {
+          reject(new Error('Gagal membaca file foto'));
+        }
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(src);
+    }
+  });
+}
+
+function drawImageCover(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+) {
+  const imgW = img.naturalWidth || img.width || 1;
+  const imgH = img.naturalHeight || img.height || 1;
+  const imgAspect = imgW / imgH;
+  const targetAspect = w / h;
+
+  let sx = 0;
+  let sy = 0;
+  let sw = imgW;
+  let sh = imgH;
+
+  if (imgAspect > targetAspect) {
+    sw = imgH * targetAspect;
+    sx = (imgW - sw) / 2;
+  } else {
+    sh = imgW / targetAspect;
+    sy = (imgH - sh) / 2;
+  }
+
+  ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+}
+
+export async function compositePhotoWithFrame(
+  photoSource: File | string,
+  frameUrlOrDataUrl: string,
+): Promise<string> {
+  if (!frameUrlOrDataUrl) {
+    if (typeof photoSource === 'string') return photoSource;
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(photoSource);
+    });
+  }
+
+  const [photoImg, frameImg] = await Promise.all([
+    loadImage(photoSource),
+    loadImage(frameUrlOrDataUrl),
+  ]);
+
+  const canvas = document.createElement('canvas');
+  const width = frameImg.naturalWidth || frameImg.width || 1500;
+  const height = frameImg.naturalHeight || frameImg.height || 2100;
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas 2D context tidak didukung.');
+
+  // 1. Fill white canvas
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(0, 0, width, height);
+
+  // 2. Polaroid window coordinates
+  const windowX = Math.round(width * 0.048);
+  const windowY = Math.round(height * 0.0343);
+  const windowW = width - windowX * 2;
+  const windowH = Math.round(height * 0.7428);
+
+  // 3. Draw photo with cover-fit inside the window
+  drawImageCover(ctx, photoImg, windowX, windowY, windowW, windowH);
+
+  // 4. Draw frame on top
+  ctx.drawImage(frameImg, 0, 0, width, height);
+
+  return canvas.toDataURL('image/jpeg', 0.92);
+}
+
+export async function compositePhotoWithFrameFile(
+  photoSource: File | string,
+  frameUrlOrDataUrl: string,
+  filename: string = 'framed-photo.jpg',
+): Promise<File> {
+  const dataUrl = await compositePhotoWithFrame(photoSource, frameUrlOrDataUrl);
+  const res = await fetch(dataUrl);
+  const blob = await res.blob();
+  return new File([blob], filename, { type: 'image/jpeg' });
+}
+

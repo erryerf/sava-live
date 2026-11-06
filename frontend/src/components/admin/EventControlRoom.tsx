@@ -25,7 +25,10 @@ import {
   WifiOff,
   X,
 } from 'lucide-react';
-import { generatePolaroidFrameFile } from '@/lib/frame-generator';
+import {
+  compositePhotoWithFrameFile,
+  generatePolaroidFrameFile,
+} from '@/lib/frame-generator';
 import { QRCodeCanvas } from 'qrcode.react';
 import {
   deleteAdminPhoto,
@@ -306,19 +309,46 @@ export default function EventControlRoom({
       canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.88),
     );
     if (!blob) throw new Error('Pembuatan gambar simulasi gagal');
-    return new File([blob], `DSC_${Date.now().toString().slice(-4)}.jpg`, {
+    const baseShot = new File([blob], `DSC_${Date.now().toString().slice(-4)}.jpg`, {
       type: 'image/jpeg',
     });
+
+    if (currentFrameImage) {
+      try {
+        return await compositePhotoWithFrameFile(
+          baseShot,
+          currentFrameImage,
+          baseShot.name,
+        );
+      } catch (err) {
+        console.warn('Gagal menempelkan frame pada bidikan simulasi:', err);
+      }
+    }
+    return baseShot;
   };
 
   const processSinglePhotographerFile = async (file: File) => {
     // Compress under 2MB while keeping 2.5K high resolution for live wall & prints
     const optimizedFile = await compressImageUnder2MB(file);
+    let finalFile = optimizedFile;
+
+    if (currentFrameImage) {
+      try {
+        finalFile = await compositePhotoWithFrameFile(
+          optimizedFile,
+          currentFrameImage,
+          file.name,
+        );
+      } catch (err) {
+        console.warn('Gagal menempelkan frame pada foto fotografer:', err);
+      }
+    }
+
     const dataUrl = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result as string);
       reader.onerror = reject;
-      reader.readAsDataURL(optimizedFile);
+      reader.readAsDataURL(finalFile);
     });
 
     const localPhoto: PhotoItem = {
@@ -579,7 +609,69 @@ export default function EventControlRoom({
         `polaroid-${selectedEvent.slug}.png`,
       );
       handleFrameFileChange(file);
-      showToast('Bingkai Polaroid bawaan berhasil dibuat & diterapkan! ✨');
+
+      // Automatically generate & push a fresh test shot with this new Polaroid frame
+      try {
+        const frameDataUrl = await new Promise<string>((res) => {
+          const r = new FileReader();
+          r.onload = () => res(r.result as string);
+          r.readAsDataURL(file);
+        });
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 1600;
+        canvas.height = 1066;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          const grad = ctx.createLinearGradient(0, 0, 1600, 1066);
+          grad.addColorStop(0, '#1c1917');
+          grad.addColorStop(0.5, '#292524');
+          grad.addColorStop(1, '#0c0a09');
+          ctx.fillStyle = grad;
+          ctx.fillRect(0, 0, 1600, 1066);
+
+          ctx.beginPath();
+          ctx.arc(800, 533, 380, 0, Math.PI * 2);
+          ctx.strokeStyle = 'rgba(212, 175, 55, 0.4)';
+          ctx.lineWidth = 4;
+          ctx.stroke();
+
+          ctx.fillStyle = '#D4AF37';
+          ctx.font = 'italic 40px Georgia, serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('Live Auto-Transfer Shot', 800, 450);
+
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 64px Georgia, serif';
+          ctx.fillText(`Kamera Fotografer (${selectedEvent.slug})`, 800, 545);
+
+          const timeStr = new Date().toLocaleTimeString('id-ID');
+          ctx.fillStyle = '#a8a29e';
+          ctx.font = '28px sans-serif';
+          ctx.fillText(`Bidikan Berbingkai Polaroid • ${timeStr}`, 800, 630);
+
+          const blob = await new Promise<Blob | null>((resBlob) =>
+            canvas.toBlob((b) => resBlob(b), 'image/jpeg', 0.88),
+          );
+          if (blob) {
+            const rawShot = new File(
+              [blob],
+              `DSC_${Date.now().toString().slice(-4)}.jpg`,
+              { type: 'image/jpeg' },
+            );
+            const framedShot = await compositePhotoWithFrameFile(
+              rawShot,
+              frameDataUrl,
+              rawShot.name,
+            );
+            await processSinglePhotographerFile(framedShot);
+          }
+        }
+      } catch (shotErr) {
+        console.warn('Auto framed shot error:', shotErr);
+      }
+
+      showToast('Bingkai Polaroid diterapkan & foto berbingkai berhasil ditayangkan! ✨');
     } catch (err) {
       showToast((err as Error).message || 'Gagal membuat bingkai Polaroid.');
     } finally {

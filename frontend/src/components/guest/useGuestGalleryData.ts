@@ -22,6 +22,7 @@ import {
 } from '@/lib/api';
 import { createEventSocket } from '@/lib/socket';
 import { compressImageUnder2MB } from '@/lib/image-compress';
+import { compositePhotoWithFrameFile } from '@/lib/frame-generator';
 import {
   ArchiveStatus,
   PhotoItem,
@@ -400,11 +401,26 @@ export function useGuestGalleryData(slug: string) {
       for (const item of capturedQueue) {
         // Compress under 2MB while preserving 2.5K high-resolution fidelity
         const optimizedFile = await compressImageUnder2MB(item.file);
+        let fileToUpload = optimizedFile;
+
+        // Apply event digital frame if configured
+        if (event?.custom_frame_url) {
+          try {
+            fileToUpload = await compositePhotoWithFrameFile(
+              optimizedFile,
+              event.custom_frame_url,
+              item.file.name,
+            );
+          } catch (frameErr) {
+            console.warn('Gagal menempelkan frame pada foto tamu:', frameErr);
+          }
+        }
+
         const dataUrl = await new Promise<string>((resolve) => {
           const reader = new FileReader();
           reader.onload = () => resolve(reader.result as string);
           reader.onerror = () => resolve(item.previewUrl);
-          reader.readAsDataURL(optimizedFile);
+          reader.readAsDataURL(fileToUpload);
         });
 
         // Atomic direct upload directly into Cloudflare R2 & Neon DB
