@@ -10,6 +10,7 @@ interface GuestLightboxModalProps {
   totalPhotos: number;
   headline: string;
   themeColor: string;
+  customFrameUrl?: string | null;
   onClose: () => void;
   onPrev: () => void;
   onNext: () => void;
@@ -22,6 +23,7 @@ export default function GuestLightboxModal({
   totalPhotos,
   headline,
   themeColor,
+  customFrameUrl,
   onClose,
   onPrev,
   onNext,
@@ -83,11 +85,28 @@ export default function GuestLightboxModal({
           </button>
         )}
 
-        <img
-          src={photo.url}
-          alt="Pratinjau foto"
-          className="max-h-[74vh] max-w-full object-contain rounded-xl shadow-2xl"
-        />
+        {customFrameUrl ? (
+          <div className="relative aspect-[5/7] max-h-[74vh] h-[74vh] max-w-full rounded-2xl overflow-hidden shadow-2xl bg-white flex flex-col">
+            <div className="absolute left-[4.8%] right-[4.8%] top-[3.43%] h-[74.28%] overflow-hidden bg-neutral-900 rounded-[2px]">
+              <img
+                src={photo.url}
+                alt="Pratinjau foto"
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <img
+              src={customFrameUrl}
+              alt="Bingkai Digital"
+              className="absolute inset-0 w-full h-full object-fill pointer-events-none z-10"
+            />
+          </div>
+        ) : (
+          <img
+            src={photo.url}
+            alt="Pratinjau foto"
+            className="max-h-[74vh] max-w-full object-contain rounded-xl shadow-2xl"
+          />
+        )}
 
         {totalPhotos > 1 && (
           <button

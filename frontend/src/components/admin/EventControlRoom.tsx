@@ -44,6 +44,7 @@ import {
 } from '@/lib/admin-api';
 import {
   addLocalEventPhoto,
+  broadcastLocalEventUpdated,
   confirmGuestPhotoUpload,
   getLocalEventCustomization,
   getLocalEventPhotos,
@@ -309,46 +310,21 @@ export default function EventControlRoom({
       canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.88),
     );
     if (!blob) throw new Error('Pembuatan gambar simulasi gagal');
-    const baseShot = new File([blob], `DSC_${Date.now().toString().slice(-4)}.jpg`, {
+    return new File([blob], `DSC_${Date.now().toString().slice(-4)}.jpg`, {
       type: 'image/jpeg',
     });
-
-    if (currentFrameImage) {
-      try {
-        return await compositePhotoWithFrameFile(
-          baseShot,
-          currentFrameImage,
-          baseShot.name,
-        );
-      } catch (err) {
-        console.warn('Gagal menempelkan frame pada bidikan simulasi:', err);
-      }
-    }
-    return baseShot;
   };
 
   const processSinglePhotographerFile = async (file: File) => {
     // Compress under 2MB while keeping 2.5K high resolution for live wall & prints
+    // Note: Photos are preserved cleanly without baking frames, allowing flexible frame toggling!
     const optimizedFile = await compressImageUnder2MB(file);
-    let finalFile = optimizedFile;
-
-    if (currentFrameImage) {
-      try {
-        finalFile = await compositePhotoWithFrameFile(
-          optimizedFile,
-          currentFrameImage,
-          file.name,
-        );
-      } catch (err) {
-        console.warn('Gagal menempelkan frame pada foto fotografer:', err);
-      }
-    }
 
     const dataUrl = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result as string);
       reader.onerror = reject;
-      reader.readAsDataURL(finalFile);
+      reader.readAsDataURL(optimizedFile);
     });
 
     const localPhoto: PhotoItem = {
@@ -564,6 +540,10 @@ export default function EventControlRoom({
         custom_frame_key: `events/${selectedEvent.slug}/frames/${file.name}`,
       };
       onEventUpdated(updatedEvt);
+      broadcastLocalEventUpdated(selectedEvent.slug, {
+        custom_frame_url: dataUrl,
+        custom_frame_key: `events/${selectedEvent.slug}/frames/${file.name}`,
+      });
 
       if (isDemoMode) {
         const allDemo = getStoredDemoEvents().map((item) =>
@@ -582,6 +562,10 @@ export default function EventControlRoom({
           };
           onEventUpdated(serverEvt);
           saveLocalEventCustomization(selectedEvent.slug, {
+            custom_frame_key: res.file_key,
+            custom_frame_url: res.public_url || dataUrl,
+          });
+          broadcastLocalEventUpdated(selectedEvent.slug, {
             custom_frame_key: res.file_key,
             custom_frame_url: res.public_url || dataUrl,
           });
@@ -609,69 +593,7 @@ export default function EventControlRoom({
         `polaroid-${selectedEvent.slug}.png`,
       );
       handleFrameFileChange(file);
-
-      // Automatically generate & push a fresh test shot with this new Polaroid frame
-      try {
-        const frameDataUrl = await new Promise<string>((res) => {
-          const r = new FileReader();
-          r.onload = () => res(r.result as string);
-          r.readAsDataURL(file);
-        });
-
-        const canvas = document.createElement('canvas');
-        canvas.width = 1600;
-        canvas.height = 1066;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          const grad = ctx.createLinearGradient(0, 0, 1600, 1066);
-          grad.addColorStop(0, '#1c1917');
-          grad.addColorStop(0.5, '#292524');
-          grad.addColorStop(1, '#0c0a09');
-          ctx.fillStyle = grad;
-          ctx.fillRect(0, 0, 1600, 1066);
-
-          ctx.beginPath();
-          ctx.arc(800, 533, 380, 0, Math.PI * 2);
-          ctx.strokeStyle = 'rgba(212, 175, 55, 0.4)';
-          ctx.lineWidth = 4;
-          ctx.stroke();
-
-          ctx.fillStyle = '#D4AF37';
-          ctx.font = 'italic 40px Georgia, serif';
-          ctx.textAlign = 'center';
-          ctx.fillText('Live Auto-Transfer Shot', 800, 450);
-
-          ctx.fillStyle = '#ffffff';
-          ctx.font = 'bold 64px Georgia, serif';
-          ctx.fillText(`Kamera Fotografer (${selectedEvent.slug})`, 800, 545);
-
-          const timeStr = new Date().toLocaleTimeString('id-ID');
-          ctx.fillStyle = '#a8a29e';
-          ctx.font = '28px sans-serif';
-          ctx.fillText(`Bidikan Berbingkai Polaroid • ${timeStr}`, 800, 630);
-
-          const blob = await new Promise<Blob | null>((resBlob) =>
-            canvas.toBlob((b) => resBlob(b), 'image/jpeg', 0.88),
-          );
-          if (blob) {
-            const rawShot = new File(
-              [blob],
-              `DSC_${Date.now().toString().slice(-4)}.jpg`,
-              { type: 'image/jpeg' },
-            );
-            const framedShot = await compositePhotoWithFrameFile(
-              rawShot,
-              frameDataUrl,
-              rawShot.name,
-            );
-            await processSinglePhotographerFile(framedShot);
-          }
-        }
-      } catch (shotErr) {
-        console.warn('Auto framed shot error:', shotErr);
-      }
-
-      showToast('Bingkai Polaroid diterapkan & foto berbingkai berhasil ditayangkan! ✨');
+      showToast('Bingkai Polaroid diterapkan ke seluruh galeri & Live Wall! ✨');
     } catch (err) {
       showToast((err as Error).message || 'Gagal membuat bingkai Polaroid.');
     } finally {
@@ -690,6 +612,10 @@ export default function EventControlRoom({
       custom_frame_key: null,
     };
     onEventUpdated(updatedEvt);
+    broadcastLocalEventUpdated(selectedEvent.slug, {
+      custom_frame_url: null,
+      custom_frame_key: null,
+    });
 
     if (isDemoMode) {
       const allDemo = getStoredDemoEvents().map((item) =>
@@ -1542,14 +1468,33 @@ export default function EventControlRoom({
                 approvedPhotos.map((photo) => (
                   <div
                     key={photo.id}
-                    className="group relative rounded-md overflow-hidden bg-[#0B0B0A] border border-white/[0.07] aspect-[4/3]"
+                    className={`group relative rounded-md overflow-hidden border border-white/[0.07] ${
+                      currentFrameImage ? 'aspect-[5/7] bg-white' : 'aspect-[4/3] bg-[#0B0B0A]'
+                    }`}
                   >
-                    <img
-                      src={photo.url}
-                      alt="Event photo"
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute inset-x-0 bottom-0 p-2.5 bg-gradient-to-t from-black/90 via-black/50 to-transparent flex items-center justify-between">
+                    {currentFrameImage ? (
+                      <>
+                        <div className="absolute left-[4.8%] right-[4.8%] top-[3.43%] h-[74.28%] overflow-hidden bg-neutral-900 rounded-[1px]">
+                          <img
+                            src={photo.url}
+                            alt="Event photo"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <img
+                          src={currentFrameImage}
+                          alt="Bingkai Digital"
+                          className="absolute inset-0 w-full h-full object-fill pointer-events-none z-10"
+                        />
+                      </>
+                    ) : (
+                      <img
+                        src={photo.url}
+                        alt="Event photo"
+                        className="w-full h-full object-cover"
+                      />
+                    )}
+                    <div className="absolute inset-x-0 bottom-0 p-2.5 bg-gradient-to-t from-black/90 via-black/50 to-transparent flex items-center justify-between z-20">
                       <span className="text-[11px] font-medium text-neutral-200 truncate">
                         {photo.source === 'photographer'
                           ? 'Kamera Utama'

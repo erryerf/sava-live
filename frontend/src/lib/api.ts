@@ -371,11 +371,27 @@ export function addMyUploadedPhotoId(slug: string, id: string): void {
   }
 }
 
+export function broadcastLocalEventUpdated(
+  slug: string,
+  eventData: Partial<PublicEvent>,
+): void {
+  try {
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      const bc = new BroadcastChannel(`sava_live_${slug}`);
+      bc.postMessage({ event: 'EVENT_UPDATED', data: eventData });
+      bc.close();
+    }
+  } catch {
+    // Ignore BroadcastChannel errors
+  }
+}
+
 export function subscribeLocalLiveEvents(
   slug: string,
   handlers: {
     onNewPhoto?: (photo: PhotoItem) => void;
     onPhotoDeleted?: (photoId: string) => void;
+    onEventUpdated?: (eventData: Partial<PublicEvent>) => void;
   },
 ): () => void {
   if (typeof window === 'undefined' || !('BroadcastChannel' in window)) {
@@ -385,16 +401,18 @@ export function subscribeLocalLiveEvents(
   bc.onmessage = (ev) => {
     const msg = ev.data as {
       event?: string;
-      data?: PhotoItem & { id?: string };
+      data?: (PhotoItem & { id?: string }) | Partial<PublicEvent>;
     };
-    if (msg?.event === 'NEW_PHOTO' && msg.data?.id && handlers.onNewPhoto) {
+    if (msg?.event === 'NEW_PHOTO' && (msg.data as PhotoItem)?.id && handlers.onNewPhoto) {
       handlers.onNewPhoto(msg.data as PhotoItem);
     } else if (
       msg?.event === 'PHOTO_DELETED' &&
-      msg.data?.id &&
+      (msg.data as { id?: string })?.id &&
       handlers.onPhotoDeleted
     ) {
-      handlers.onPhotoDeleted(msg.data.id);
+      handlers.onPhotoDeleted((msg.data as { id: string }).id);
+    } else if (msg?.event === 'EVENT_UPDATED' && msg.data && handlers.onEventUpdated) {
+      handlers.onEventUpdated(msg.data as Partial<PublicEvent>);
     }
   };
   return () => {

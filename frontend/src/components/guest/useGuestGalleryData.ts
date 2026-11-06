@@ -22,7 +22,6 @@ import {
 } from '@/lib/api';
 import { createEventSocket } from '@/lib/socket';
 import { compressImageUnder2MB } from '@/lib/image-compress';
-import { compositePhotoWithFrameFile } from '@/lib/frame-generator';
 import {
   ArchiveStatus,
   PhotoItem,
@@ -177,6 +176,10 @@ export function useGuestGalleryData(slug: string) {
           fetchedEvent.header_image_url ||
           localCustom?.header_image_url ||
           null,
+        custom_frame_url:
+          localCustom?.custom_frame_url !== undefined
+            ? localCustom.custom_frame_url
+            : fetchedEvent.custom_frame_url,
         guest_upload_limit: resolvedLimit,
         gallery_theme: localCustom?.gallery_theme || fetchedEvent.gallery_theme || 'dark',
       });
@@ -216,15 +219,35 @@ export function useGuestGalleryData(slug: string) {
     const guestSyncTimer = setInterval(async () => {
       if (isLocalOnlyEvent) return;
       try {
-        const [mainRes, guestRes] = await Promise.all([
+        const [mainRes, guestRes, evtRes] = await Promise.all([
           fetchEventPhotos(slug, { limit: 30, source: 'photographer' }),
           fetchEventPhotos(slug, { limit: 30, source: 'guest' }),
+          fetchPublicEvent(slug).catch(() => null),
         ]);
         if (!mounted || !mainRes.success || !guestRes.success) return;
         setPhotosByTab({
           photographer: mainRes.data || [],
           guest: guestRes.data || [],
         });
+        if (evtRes) {
+          const localCustom = getLocalEventCustomization(slug);
+          setEvent((prev) => {
+            if (!prev) return evtRes;
+            return {
+              ...prev,
+              ...evtRes,
+              name: localCustom?.name || evtRes.name,
+              header_subtitle:
+                localCustom?.header_subtitle !== undefined
+                  ? localCustom.header_subtitle
+                  : (evtRes.header_subtitle ?? 'The Wedding of'),
+              custom_frame_url:
+                localCustom?.custom_frame_url !== undefined
+                  ? localCustom.custom_frame_url
+                  : evtRes.custom_frame_url,
+            };
+          });
+        }
       } catch {
         // Ignore network hiccup
       }
@@ -278,6 +301,9 @@ export function useGuestGalleryData(slug: string) {
           photographer: prev.photographer.filter((p) => p.id !== photoId),
           guest: prev.guest.filter((p) => p.id !== photoId),
         }));
+      },
+      onEventUpdated: (eventData) => {
+        setEvent((prev) => (prev ? { ...prev, ...eventData } : null));
       },
     });
 
@@ -400,27 +426,14 @@ export function useGuestGalleryData(slug: string) {
     try {
       for (const item of capturedQueue) {
         // Compress under 2MB while preserving 2.5K high-resolution fidelity
+        // Note: Clean original photo is preserved, enabling non-destructive frame toggling
         const optimizedFile = await compressImageUnder2MB(item.file);
-        let fileToUpload = optimizedFile;
-
-        // Apply event digital frame if configured
-        if (event?.custom_frame_url) {
-          try {
-            fileToUpload = await compositePhotoWithFrameFile(
-              optimizedFile,
-              event.custom_frame_url,
-              item.file.name,
-            );
-          } catch (frameErr) {
-            console.warn('Gagal menempelkan frame pada foto tamu:', frameErr);
-          }
-        }
 
         const dataUrl = await new Promise<string>((resolve) => {
           const reader = new FileReader();
           reader.onload = () => resolve(reader.result as string);
           reader.onerror = () => resolve(item.previewUrl);
-          reader.readAsDataURL(fileToUpload);
+          reader.readAsDataURL(optimizedFile);
         });
 
         // Atomic direct upload directly into Cloudflare R2 & Neon DB

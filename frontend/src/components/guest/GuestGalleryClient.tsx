@@ -12,6 +12,7 @@ import GuestGalleryHeader from './GuestGalleryHeader';
 import GuestLightboxModal from './GuestLightboxModal';
 import GuestUploadModal from './GuestUploadModal';
 import { useGuestGalleryData } from './useGuestGalleryData';
+import { compositePhotoWithFrame } from '@/lib/frame-generator';
 
 interface GuestGalleryClientProps {
   slug: string;
@@ -84,7 +85,18 @@ export default function GuestGalleryClient({ slug }: GuestGalleryClientProps) {
 
   const handleDirectDownload = async (photo: PhotoItem) => {
     try {
-      const response = await fetch(photo.url, { mode: 'cors' });
+      let downloadUrl = photo.url;
+      if (event?.custom_frame_url) {
+        try {
+          downloadUrl = await compositePhotoWithFrame(
+            photo.url,
+            event.custom_frame_url,
+          );
+        } catch (frameErr) {
+          console.warn('Gagal menempelkan frame saat download:', frameErr);
+        }
+      }
+      const response = await fetch(downloadUrl, { mode: 'cors' });
       const blob = await response.blob();
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -423,22 +435,47 @@ export default function GuestGalleryClient({ slug }: GuestGalleryClientProps) {
                     isMyPhoto
                       ? 'border-amber-400 ring-2 ring-amber-400/30'
                       : ''
+                  } ${
+                    event?.custom_frame_url ? 'aspect-[5/7] bg-white' : ''
                   }`}
                 >
-                  <img
-                    src={photo.thumbnail_url || photo.url}
-                    alt={
-                      photo.guest_name
-                        ? `Potret oleh ${photo.guest_name}`
-                        : 'Dokumentasi Acara'
-                    }
-                    loading="lazy"
-                    decoding="async"
-                    className="w-full h-auto object-cover block group-hover:scale-105 transition-transform duration-500"
-                  />
+                  {event?.custom_frame_url ? (
+                    <>
+                      <div className="absolute left-[4.8%] right-[4.8%] top-[3.43%] h-[74.28%] overflow-hidden bg-neutral-900 rounded-[2px]">
+                        <img
+                          src={photo.thumbnail_url || photo.url}
+                          alt={
+                            photo.guest_name
+                              ? `Potret oleh ${photo.guest_name}`
+                              : 'Dokumentasi Acara'
+                          }
+                          loading="lazy"
+                          decoding="async"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                      </div>
+                      <img
+                        src={event.custom_frame_url}
+                        alt="Bingkai Digital"
+                        className="absolute inset-0 w-full h-full object-fill pointer-events-none z-10"
+                      />
+                    </>
+                  ) : (
+                    <img
+                      src={photo.thumbnail_url || photo.url}
+                      alt={
+                        photo.guest_name
+                          ? `Potret oleh ${photo.guest_name}`
+                          : 'Dokumentasi Acara'
+                      }
+                      loading="lazy"
+                      decoding="async"
+                      className="w-full h-auto object-cover block group-hover:scale-105 transition-transform duration-500"
+                    />
+                  )}
 
                   {photo.source === 'guest' && (
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/45 to-transparent p-2.5 pt-7">
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/45 to-transparent p-2.5 pt-7 z-20">
                       <div className="flex items-center gap-1.5 max-w-full">
                         {isMyPhoto && (
                           <span className="shrink-0 px-2 py-0.5 rounded-full bg-amber-400 text-neutral-950 font-extrabold text-[10px] shadow-sm flex items-center gap-1">
@@ -512,6 +549,7 @@ export default function GuestGalleryClient({ slug }: GuestGalleryClientProps) {
           totalPhotos={currentPhotos.length}
           headline={headline}
           themeColor={themeColor}
+          customFrameUrl={event?.custom_frame_url}
           onClose={() => setLightboxIndex(null)}
           onPrev={handlePrevPhoto}
           onNext={handleNextPhoto}

@@ -116,26 +116,63 @@ export async function generatePolaroidDataUrl(
   });
 }
 
-function loadImage(src: File | string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error('Gagal memuat gambar'));
-    if (typeof src === 'string') {
-      img.src = src;
-    } else {
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === 'string') {
-          img.src = reader.result;
-        } else {
-          reject(new Error('Gagal membaca file foto'));
-        }
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(src);
+async function loadImage(src: File | string): Promise<HTMLImageElement> {
+  if (typeof src === 'string') {
+    if (src.startsWith('data:') || src.startsWith('blob:')) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error('Gagal memuat gambar'));
+        img.src = src;
+      });
     }
+
+    // Fetch as blob to prevent tainted canvas issues
+    try {
+      const res = await fetch(src, { mode: 'cors' });
+      if (res.ok) {
+        const blob = await res.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => {
+            URL.revokeObjectURL(blobUrl);
+            resolve(img);
+          };
+          img.onerror = () => {
+            URL.revokeObjectURL(blobUrl);
+            reject(new Error('Gagal memuat blob gambar'));
+          };
+          img.src = blobUrl;
+        });
+      }
+    } catch {
+      // Fallback to crossOrigin img tag
+    }
+
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error('Gagal memuat gambar'));
+      img.src = src;
+    });
+  }
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error('Gagal memuat file'));
+        img.src = reader.result;
+      } else {
+        reject(new Error('Gagal membaca file foto'));
+      }
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(src);
   });
 }
 

@@ -189,6 +189,10 @@ export default function LiveWallClient({ slug }: LiveWallClientProps) {
           localCustom?.header_subtitle !== undefined
             ? localCustom.header_subtitle
             : (fetchedEvent.header_subtitle ?? 'The Wedding of'),
+        custom_frame_url:
+          localCustom?.custom_frame_url !== undefined
+            ? localCustom.custom_frame_url
+            : fetchedEvent.custom_frame_url,
       });
       const res = await fetchEventPhotos(slug, { limit: 40 });
       if (mounted) {
@@ -222,6 +226,29 @@ export default function LiveWallClient({ slug }: LiveWallClientProps) {
           });
         })
         .catch(() => {});
+
+      fetchPublicEvent(slug)
+        .then((evt) => {
+          if (!mounted || !evt) return;
+          const localCustom = getLocalEventCustomization(slug);
+          setEvent((prev) => {
+            if (!prev) return evt;
+            return {
+              ...prev,
+              ...evt,
+              name: localCustom?.name || evt.name,
+              header_subtitle:
+                localCustom?.header_subtitle !== undefined
+                  ? localCustom.header_subtitle
+                  : (evt.header_subtitle ?? 'The Wedding of'),
+              custom_frame_url:
+                localCustom?.custom_frame_url !== undefined
+                  ? localCustom.custom_frame_url
+                  : evt.custom_frame_url,
+            };
+          });
+        })
+        .catch(() => {});
     }, 3500);
 
     return () => {
@@ -238,6 +265,9 @@ export default function LiveWallClient({ slug }: LiveWallClientProps) {
       },
       onPhotoDeleted: (photoId) => {
         setPhotos((prev) => prev.filter((p) => p.id !== photoId));
+      },
+      onEventUpdated: (eventData) => {
+        setEvent((prev) => (prev ? { ...prev, ...eventData } : null));
       },
     });
 
@@ -346,17 +376,38 @@ export default function LiveWallClient({ slug }: LiveWallClientProps) {
             {displayedGridPhotos.map((photo, idx) => (
               <div
                 key={`${photo.id}-${idx}`}
-                className="break-inside-avoid relative rounded-2xl overflow-hidden bg-neutral-900 border border-white/10 shadow-2xl transition-transform hover:scale-[1.01]"
+                className={`break-inside-avoid relative rounded-2xl overflow-hidden shadow-2xl transition-transform hover:scale-[1.01] ${
+                  event?.custom_frame_url
+                    ? 'aspect-[5/7] bg-white border border-white/20'
+                    : 'bg-neutral-900 border border-white/10'
+                }`}
               >
-                <img
-                  src={photo.url}
-                  alt="Live Wall Photo"
-                  className="w-full h-auto object-cover block"
-                />
+                {event?.custom_frame_url ? (
+                  <>
+                    <div className="absolute left-[4.8%] right-[4.8%] top-[3.43%] h-[74.28%] overflow-hidden bg-neutral-900 rounded-[2px]">
+                      <img
+                        src={photo.url}
+                        alt="Live Wall Photo"
+                        className="w-full h-full object-cover block"
+                      />
+                    </div>
+                    <img
+                      src={event.custom_frame_url}
+                      alt="Bingkai Digital"
+                      className="absolute inset-0 w-full h-full object-fill pointer-events-none z-10"
+                    />
+                  </>
+                ) : (
+                  <img
+                    src={photo.url}
+                    alt="Live Wall Photo"
+                    className="w-full h-auto object-cover block"
+                  />
+                )}
 
                 {/* Badge Nama di Grid: Hanya untuk Tamu (Fotografer bersih) */}
                 {photo.source === 'guest' && (
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-3.5 pt-8">
+                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-3.5 pt-8 z-20">
                     <span className="inline-block px-3.5 py-1 rounded-full text-xs font-bold bg-black/75 text-white border border-white/15">
                       📸 Momen dari: {photo.guest_name || 'Tamu'}
                     </span>
@@ -371,16 +422,33 @@ export default function LiveWallClient({ slug }: LiveWallClientProps) {
         {spotlightPhoto && (
           <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-6 sm:p-10">
             <div className="relative max-w-4xl w-full flex flex-col items-center">
-              <div
-                className="relative rounded-3xl overflow-hidden shadow-[0_25px_80px_rgba(0,0,0,0.9)] border-4 bg-neutral-950"
-                style={{ borderColor: themeColor }}
-              >
-                <img
-                  src={spotlightPhoto.url}
-                  alt="Foto Baru"
-                  className="max-h-[76vh] w-auto object-contain block"
-                />
-              </div>
+              {event?.custom_frame_url ? (
+                <div className="relative aspect-[5/7] max-h-[76vh] h-[76vh] w-auto rounded-3xl overflow-hidden shadow-[0_25px_80px_rgba(0,0,0,0.9)] bg-white border-2 border-white/20">
+                  <div className="absolute left-[4.8%] right-[4.8%] top-[3.43%] h-[74.28%] overflow-hidden bg-neutral-900 rounded-[2px]">
+                    <img
+                      src={spotlightPhoto.url}
+                      alt="Foto Baru"
+                      className="w-full h-full object-cover block"
+                    />
+                  </div>
+                  <img
+                    src={event.custom_frame_url}
+                    alt="Bingkai Digital"
+                    className="absolute inset-0 w-full h-full object-fill pointer-events-none z-10"
+                  />
+                </div>
+              ) : (
+                <div
+                  className="relative rounded-3xl overflow-hidden shadow-[0_25px_80px_rgba(0,0,0,0.9)] border-4 bg-neutral-950"
+                  style={{ borderColor: themeColor }}
+                >
+                  <img
+                    src={spotlightPhoto.url}
+                    alt="Foto Baru"
+                    className="max-h-[76vh] w-auto object-contain block"
+                  />
+                </div>
+              )}
 
               {/* Atribusi Nama sesuai /ui-ux-flow:
                   - Jika foto dari Fotografer: Bersih tanpa teks tambahan (menonjolkan custom frame).
