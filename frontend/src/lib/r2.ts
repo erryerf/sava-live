@@ -1,4 +1,12 @@
-import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import {
+  _Object,
+  DeleteObjectsCommand,
+  GetObjectCommand,
+  ListObjectsV2Command,
+  ListObjectsV2CommandOutput,
+  PutObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 const R2_ACCOUNT_ID =
@@ -93,4 +101,53 @@ export function getR2PublicUrl(fileKey: string): string {
   // Otherwise route via app edge proxy with aggressive caching to guarantee 100% reachability across Indonesian ISPs
   return `/v1/photos/asset/${cleanKey}`;
 }
+
+export async function deleteR2EventFolder(eventSlug: string): Promise<number> {
+  const cleanSlug = eventSlug.toLowerCase().trim();
+  if (!cleanSlug) return 0;
+  const prefix = `events/${cleanSlug}/`;
+
+  const client = getR2Client();
+  let deletedCount = 0;
+  let continuationToken: string | undefined = undefined;
+
+  try {
+    do {
+      const listCommand = new ListObjectsV2Command({
+        Bucket: R2_BUCKET_NAME,
+        Prefix: prefix,
+        ContinuationToken: continuationToken,
+      });
+
+      const listRes: ListObjectsV2CommandOutput = await client.send(listCommand);
+      const objects: _Object[] = listRes.Contents || [];
+
+      if (objects.length > 0) {
+        const deleteParams = {
+          Bucket: R2_BUCKET_NAME,
+          Delete: {
+            Objects: objects
+              .filter((obj: _Object) => Boolean(obj.Key))
+              .map((obj: _Object) => ({ Key: obj.Key as string })),
+            Quiet: true,
+          },
+        };
+
+        const deleteCommand = new DeleteObjectsCommand(deleteParams);
+        await client.send(deleteCommand);
+        deletedCount += objects.length;
+      }
+
+      continuationToken = listRes.IsTruncated
+        ? listRes.NextContinuationToken
+        : undefined;
+    } while (continuationToken);
+
+    return deletedCount;
+  } catch (err) {
+    console.error(`Failed to delete R2 folder for ${prefix}:`, err);
+    throw err;
+  }
+}
+
 

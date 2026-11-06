@@ -154,18 +154,23 @@ export async function updateAdminEventStatus(
   return json.data as AdminEvent;
 }
 
-export async function deleteAdminEvent(id: string): Promise<void> {
+export async function deleteAdminEvent(
+  id: string,
+  purgeStorage: boolean = false,
+): Promise<{ success: boolean; message?: string; r2_deleted_count?: number }> {
+  const query = purgeStorage ? '?purge_storage=true' : '';
   const res = await fetch(
-    `${API_BASE_URL}/admin/events/${encodeURIComponent(id)}`,
+    `${API_BASE_URL}/admin/events/${encodeURIComponent(id)}${query}`,
     {
       method: 'DELETE',
       headers: authHeaders(),
     },
   );
+  const json = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const json = await res.json().catch(() => ({}));
     throw new Error(json.message || 'Gagal menghapus event.');
   }
+  return json;
 }
 
 export async function triggerAdminArchive(

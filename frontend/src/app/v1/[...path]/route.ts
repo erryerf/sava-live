@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ensureDbSchema, getDbPool } from '@/lib/db';
-import { createR2PresignedUploadUrl, getR2ObjectStream, getR2PublicUrl, uploadR2Buffer } from '@/lib/r2';
+import {
+  createR2PresignedUploadUrl,
+  deleteR2EventFolder,
+  getR2ObjectStream,
+  getR2PublicUrl,
+  uploadR2Buffer,
+} from '@/lib/r2';
 import { AdminEvent, PhotoItem, PublicEvent } from '@/lib/types';
 
 function rowToAdminEvent(row: any): AdminEvent {
@@ -720,6 +726,8 @@ export async function DELETE(
   await ensureDbSchema();
   const db = getDbPool();
   const { path } = await context.params;
+  const url = new URL(req.url);
+  const purgeStorage = url.searchParams.get('purge_storage') === 'true';
 
   try {
     // Guard all DELETE /v1/admin/* routes
@@ -735,8 +743,12 @@ export async function DELETE(
         [idOrSlug],
       );
 
+      let targetSlug = idOrSlug;
+      let r2DeletedCount = 0;
+
       if (foundRes.rows.length > 0) {
         const { id, slug } = foundRes.rows[0];
+        targetSlug = slug;
         // Clean up photos associated with this event slug
         await db.query('DELETE FROM photos WHERE LOWER(event_slug) = LOWER($1)', [slug]);
         // Clean up ftp credentials
@@ -747,7 +759,22 @@ export async function DELETE(
         await db.query('DELETE FROM events WHERE id = $1 OR LOWER(slug) = LOWER($1)', [idOrSlug]);
       }
 
-      return NextResponse.json({ success: true, message: 'Acara berhasil dihapus.' });
+      // If purge_storage was requested, delete all files in R2 under events/{slug}/
+      if (purgeStorage && targetSlug) {
+        try {
+          r2DeletedCount = await deleteR2EventFolder(targetSlug);
+        } catch (r2Err) {
+          console.error('Failed to purge Cloudflare R2 folder:', r2Err);
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: purgeStorage
+          ? `Acara dan seluruh file di R2 (${r2DeletedCount} file) berhasil dihapus.`
+          : 'Acara berhasil dihapus.',
+        r2_deleted_count: r2DeletedCount,
+      });
     }
 
     // DELETE /v1/admin/events/:id/photos/:photoId

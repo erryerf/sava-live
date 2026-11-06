@@ -1239,6 +1239,7 @@ export function DeleteEventModal({
   showToast,
 }: DeleteEventModalProps) {
   const [submittingDelete, setSubmittingDelete] = useState(false);
+  const [purgeStorage, setPurgeStorage] = useState(false);
 
   if (!deletingEvent) return null;
 
@@ -1257,13 +1258,28 @@ export function DeleteEventModal({
       } catch {}
 
       if (!isDemoMode) {
-        await deleteAdminEvent(deletingEvent.id || deletingEvent.slug);
+        const res = await deleteAdminEvent(
+          deletingEvent.id || deletingEvent.slug,
+          purgeStorage,
+        );
+        if (purgeStorage && typeof res.r2_deleted_count === 'number') {
+          showToast(
+            `Acara dan ${res.r2_deleted_count} file di R2 berhasil dibersihkan.`,
+          );
+        } else {
+          showToast(
+            purgeStorage
+              ? 'Acara dan seluruh file di R2 berhasil dihapus.'
+              : 'Acara berhasil dihapus.',
+          );
+        }
+      } else {
+        showToast('Acara berhasil dihapus.');
       }
 
       onEventDeleted(deletingEvent.id);
       await onReloadEvents();
       onClose();
-      showToast('Acara berhasil dihapus.');
     } catch (err) {
       showToast((err as Error).message || 'Gagal menghapus acara.');
     } finally {
@@ -1284,6 +1300,26 @@ export function DeleteEventModal({
             dinonaktifkan secara permanen.
           </p>
         </div>
+
+        {/* Checkbox Opsi Pembersihan Cloudflare R2 */}
+        <label className="flex items-start gap-3 p-3.5 rounded-lg bg-[#161615] border border-white/[0.07] cursor-pointer hover:border-white/[0.14] transition-colors select-none group">
+          <input
+            type="checkbox"
+            checked={purgeStorage}
+            onChange={(e) => setPurgeStorage(e.target.checked)}
+            className="mt-0.5 w-4 h-4 rounded border-neutral-700 bg-neutral-900 text-rose-600 focus:ring-rose-500/20 cursor-pointer accent-rose-600"
+          />
+          <div className="space-y-1">
+            <span className="text-xs font-semibold text-neutral-200 group-hover:text-white transition-colors">
+              Hapus permanen file foto di Cloudflare R2
+            </span>
+            <p className="text-[11px] text-neutral-400 leading-relaxed">
+              Jika dicentang, seluruh master foto asli di folder{' '}
+              <code className="text-neutral-300 font-mono">events/{deletingEvent.slug}/</code>{' '}
+              akan disapu bersih dari cloud storage.
+            </p>
+          </div>
+        </label>
 
         <div className="flex justify-end gap-2 pt-2">
           <button
