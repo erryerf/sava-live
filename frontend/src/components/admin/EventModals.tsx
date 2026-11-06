@@ -1247,23 +1247,23 @@ export function DeleteEventModal({
     setSubmittingDelete(true);
 
     try {
-      if (isDemoMode) {
-        const remaining = getStoredDemoEvents().filter(
-          (item) => item.id !== deletingEvent.id,
-        );
-        saveStoredDemoEvents(remaining);
-        onEventDeleted(deletingEvent.id);
-        await onReloadEvents();
-        onClose();
-        showToast('Acara dihapus.');
-        return;
+      // Always remove from local storage cache first to prevent resurrecting
+      const remaining = getStoredDemoEvents().filter(
+        (item) => item.id !== deletingEvent.id && item.slug !== deletingEvent.slug,
+      );
+      saveStoredDemoEvents(remaining);
+      try {
+        window.localStorage.removeItem(`sava_custom_${deletingEvent.slug}`);
+      } catch {}
+
+      if (!isDemoMode) {
+        await deleteAdminEvent(deletingEvent.id || deletingEvent.slug);
       }
 
-      await deleteAdminEvent(deletingEvent.id);
       onEventDeleted(deletingEvent.id);
       await onReloadEvents();
       onClose();
-      showToast('Acara dihapus.');
+      showToast('Acara berhasil dihapus.');
     } catch (err) {
       showToast((err as Error).message || 'Gagal menghapus acara.');
     } finally {

@@ -104,16 +104,20 @@ export default function AdminDashboardClient() {
   const loadEvents = useCallback(async () => {
     setLoading(true);
     try {
-      const localStored = getStoredDemoEvents();
-      if (localStored.length > 0) {
-        await fetch('/v1/admin/events/sync', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${getAdminToken()}`,
-          },
-          body: JSON.stringify({ events: localStored }),
-        }).catch(() => {});
+      // One-time initial migration from localStorage to Neon DB if not yet synced
+      if (typeof window !== 'undefined' && !window.localStorage.getItem('sava_initial_events_synced_v2')) {
+        const localStored = getStoredDemoEvents();
+        if (localStored.length > 0) {
+          await fetch('/v1/admin/events/sync', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${getAdminToken()}`,
+            },
+            body: JSON.stringify({ events: localStored }),
+          }).catch(() => {});
+        }
+        window.localStorage.setItem('sava_initial_events_synced_v2', 'true');
       }
 
       const list = await fetchAdminEvents(
@@ -547,7 +551,13 @@ export default function AdminDashboardClient() {
         isDemoMode={isDemoMode}
         onClose={() => setDeletingEvent(null)}
         onEventDeleted={(deletedId) => {
-          if (selectedEvent?.id === deletedId) {
+          setEvents((prev) =>
+            prev.filter((e) => e.id !== deletedId && e.slug !== deletedId),
+          );
+          if (
+            selectedEvent?.id === deletedId ||
+            selectedEvent?.slug === deletedId
+          ) {
             setSelectedEvent(null);
           }
         }}

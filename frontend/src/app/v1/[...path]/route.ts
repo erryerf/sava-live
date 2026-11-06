@@ -728,8 +728,26 @@ export async function DELETE(
     }
     // DELETE /v1/admin/events/:id
     if (path.length === 3 && path[0] === 'admin' && path[1] === 'events') {
-      await db.query('DELETE FROM events WHERE id = $1 OR slug = $1', [path[2]]);
-      return NextResponse.json({ success: true });
+      const idOrSlug = decodeURIComponent(path[2]).trim();
+
+      const foundRes = await db.query(
+        'SELECT id, slug FROM events WHERE id = $1 OR LOWER(slug) = LOWER($1) LIMIT 1',
+        [idOrSlug],
+      );
+
+      if (foundRes.rows.length > 0) {
+        const { id, slug } = foundRes.rows[0];
+        // Clean up photos associated with this event slug
+        await db.query('DELETE FROM photos WHERE LOWER(event_slug) = LOWER($1)', [slug]);
+        // Clean up ftp credentials
+        await db.query('DELETE FROM ftp_credentials WHERE event_id = $1 OR LOWER(username) = LOWER($2)', [id, slug]);
+        // Delete the event record
+        await db.query('DELETE FROM events WHERE id = $1', [id]);
+      } else {
+        await db.query('DELETE FROM events WHERE id = $1 OR LOWER(slug) = LOWER($1)', [idOrSlug]);
+      }
+
+      return NextResponse.json({ success: true, message: 'Acara berhasil dihapus.' });
     }
 
     // DELETE /v1/admin/events/:id/photos/:photoId
