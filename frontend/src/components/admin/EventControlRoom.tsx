@@ -13,6 +13,7 @@ import {
   ExternalLink,
   FolderSync,
   KeyRound,
+  Loader2,
   Pencil,
   QrCode,
   RefreshCw,
@@ -24,6 +25,7 @@ import {
   WifiOff,
   X,
 } from 'lucide-react';
+import { generatePolaroidFrameFile } from '@/lib/frame-generator';
 import { QRCodeCanvas } from 'qrcode.react';
 import {
   deleteAdminPhoto,
@@ -57,6 +59,26 @@ import {
   getStoredDemoEvents,
   saveStoredDemoEvents,
 } from './demo-data';
+
+function formatPolaroidDate(isoString?: string | null): string {
+  if (!isoString) {
+    const now = new Date();
+    const d = String(now.getDate()).padStart(2, '0');
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const y = now.getFullYear();
+    return `${d}/${m}/${y}`;
+  }
+  try {
+    const dt = new Date(isoString);
+    if (isNaN(dt.getTime())) return '26/06/2026';
+    const d = String(dt.getDate()).padStart(2, '0');
+    const m = String(dt.getMonth() + 1).padStart(2, '0');
+    const y = dt.getFullYear();
+    return `${d}/${m}/${y}`;
+  } catch {
+    return '26/06/2026';
+  }
+}
 
 interface EventControlRoomProps {
   selectedEvent: AdminEvent;
@@ -108,6 +130,14 @@ export default function EventControlRoom({
   } | null>(null);
   const [simulatingShot, setSimulatingShot] = useState(false);
   const [uploadingFrame, setUploadingFrame] = useState(false);
+  const [frameTab, setFrameTab] = useState<'default_polaroid' | 'custom_upload'>(
+    'default_polaroid',
+  );
+  const [polaroidName, setPolaroidName] = useState(selectedEvent.name || '');
+  const [polaroidDate, setPolaroidDate] = useState(() =>
+    formatPolaroidDate(selectedEvent.start_time),
+  );
+  const [generatingPolaroid, setGeneratingPolaroid] = useState(false);
 
   const qrCanvasRef = useRef<HTMLDivElement | null>(null);
   const folderWatchTimerRef = useRef<ReturnType<typeof setInterval> | null>(
@@ -126,6 +156,8 @@ export default function EventControlRoom({
   useEffect(() => {
     const localCustom = getLocalEventCustomization(selectedEvent.slug);
     setEditEventName(localCustom?.name || selectedEvent.name);
+    setPolaroidName(localCustom?.name || selectedEvent.name || '');
+    setPolaroidDate(formatPolaroidDate(selectedEvent.start_time));
     setEditHeaderSubtitle(
       localCustom?.header_subtitle !== undefined
         ? (localCustom.header_subtitle ?? '')
@@ -533,6 +565,26 @@ export default function EventControlRoom({
       }
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleApplyDefaultPolaroid = async () => {
+    if (generatingPolaroid) return;
+    setGeneratingPolaroid(true);
+    try {
+      const file = await generatePolaroidFrameFile(
+        {
+          names: polaroidName.trim() || selectedEvent.name,
+          date: polaroidDate.trim(),
+        },
+        `polaroid-${selectedEvent.slug}.png`,
+      );
+      handleFrameFileChange(file);
+      showToast('Bingkai Polaroid bawaan berhasil dibuat & diterapkan! ✨');
+    } catch (err) {
+      showToast((err as Error).message || 'Gagal membuat bingkai Polaroid.');
+    } finally {
+      setGeneratingPolaroid(false);
+    }
   };
 
   const handleRemoveFrame = async () => {
@@ -1078,7 +1130,7 @@ export default function EventControlRoom({
           </div>
 
           {/* 3. Custom Digital Frame (.PNG) */}
-          <div className="p-5 rounded-lg bg-[#121211] border border-white/[0.07] space-y-3.5">
+          <div className="p-5 rounded-lg bg-[#121211] border border-white/[0.07] space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-400">
@@ -1094,70 +1146,181 @@ export default function EventControlRoom({
                   </span>
                 )}
               </div>
-            </div>
-
-            {/* Live Frame Preview */}
-            {currentFrameImage ? (
-              <div className="relative h-44 rounded-md overflow-hidden border border-white/[0.08] bg-[#0A0A09] flex items-center justify-center">
-                <img
-                  src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=800&q=80"
-                  alt="Foto Contoh"
-                  className="absolute inset-0 w-full h-full object-cover opacity-60"
-                />
-                <img
-                  src={currentFrameImage}
-                  alt="Bingkai Acara"
-                  className="absolute inset-0 w-full h-full object-contain pointer-events-none z-10"
-                />
-                <div className="absolute bottom-2 left-2 right-2 px-2 py-1 rounded bg-black/75 backdrop-blur-xs text-[10px] text-neutral-300 text-center z-20">
-                  Simulasi Pratinjau Bingkai Transparan di atas Foto
-                </div>
-              </div>
-            ) : (
-              <div className="h-32 rounded-md border border-dashed border-white/15 bg-[#0B0B0A] flex flex-col items-center justify-center p-4 text-center">
-                <Sparkles className="w-5 h-5 text-neutral-500 mb-1.5" />
-                <span className="text-xs font-medium text-neutral-300">
-                  Belum Ada Bingkai Digital
-                </span>
-                <span className="text-[11px] text-neutral-500 max-w-xs mt-0.5 leading-relaxed">
-                  Unggah file .PNG transparan agar otomatis ditempelkan pada setiap bidikan fotografer &amp; foto tamu.
-                </span>
-              </div>
-            )}
-
-            <div className="flex gap-2 pt-1">
-              <label className="flex-1 py-2 px-3 rounded-md bg-[#F5F4F0] hover:bg-white text-[#0E0E0D] text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer transition-colors">
-                <Upload className="w-3.5 h-3.5" />
-                <span>
-                  {uploadingFrame
-                    ? 'Mengunggah...'
-                    : currentFrameImage
-                      ? 'Ganti Bingkai (.PNG)'
-                      : 'Unggah Bingkai (.PNG)'}
-                </span>
-                <input
-                  type="file"
-                  accept="image/png"
-                  disabled={uploadingFrame}
-                  onChange={(e) => {
-                    handleFrameFileChange(e.target.files?.[0] || null);
-                    e.target.value = '';
-                  }}
-                  className="hidden"
-                />
-              </label>
 
               {currentFrameImage && (
                 <button
                   type="button"
                   onClick={handleRemoveFrame}
-                  className="px-3 py-2 rounded-md bg-[#1A1A18] hover:bg-[#242422] border border-white/[0.08] text-neutral-300 text-xs font-medium"
-                  title="Hapus Bingkai Digital"
+                  className="px-2.5 py-1 rounded text-[11px] font-medium bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 transition-colors"
                 >
-                  Reset
+                  Hapus Bingkai
                 </button>
               )}
             </div>
+
+            {/* Mode Selector Tabs */}
+            <div className="grid grid-cols-2 gap-1.5 p-1 rounded-lg bg-[#181816] border border-white/[0.06] text-xs">
+              <button
+                type="button"
+                onClick={() => setFrameTab('default_polaroid')}
+                className={`py-2 px-3 rounded-md font-medium text-center transition-all flex items-center justify-center gap-1.5 ${
+                  frameTab === 'default_polaroid'
+                    ? 'bg-[#292926] text-white shadow-xs border border-white/10'
+                    : 'text-neutral-400 hover:text-neutral-200'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span>Polaroid Default</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFrameTab('custom_upload')}
+                className={`py-2 px-3 rounded-md font-medium text-center transition-all flex items-center justify-center gap-1.5 ${
+                  frameTab === 'custom_upload'
+                    ? 'bg-[#292926] text-white shadow-xs border border-white/10'
+                    : 'text-neutral-400 hover:text-neutral-200'
+                }`}
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>Upload Custom .PNG</span>
+              </button>
+            </div>
+
+            {/* TAB 1: POLAROID DEFAULT */}
+            {frameTab === 'default_polaroid' && (
+              <div className="space-y-4">
+                {/* Live Mockup Preview */}
+                <div className="flex flex-col items-center justify-center py-5 px-3 bg-[#0A0A09] rounded-lg border border-white/[0.08]">
+                  <div className="w-[190px] sm:w-[210px] bg-[#FFFFFF] rounded-xs shadow-[0_12px_32px_rgba(0,0,0,0.6)] p-2.5 pb-3.5 border border-neutral-300 select-none">
+                    {/* Photo Window */}
+                    <div className="relative aspect-[3/3.6] w-full bg-neutral-900 rounded-[1px] overflow-hidden border border-black/10">
+                      <img
+                        src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=600&q=80"
+                        alt="Foto Contoh"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    {/* Bottom Chin with cursive couple name and clean date */}
+                    <div className="pt-3 pb-1 text-center space-y-0.5">
+                      <div
+                        className="text-2xl text-neutral-900 leading-tight italic truncate px-1"
+                        style={{ fontFamily: "'Alex Brush', 'Dancing Script', 'Great Vibes', cursive" }}
+                      >
+                        {polaroidName.trim() || 'Nama Pasangan'}
+                      </div>
+                      <div className="text-[11px] font-semibold text-neutral-700 tracking-wider">
+                        {polaroidDate.trim() || '26/06/2026'}
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-[10px] text-neutral-500 mt-2.5 text-center">
+                    Pratinjau langsung tema Polaroid dengan teks kustom Anda
+                  </span>
+                </div>
+
+                {/* Editable Inputs for Name & Date */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-medium text-neutral-400">
+                      Nama Pasangan / Acara
+                    </label>
+                    <input
+                      type="text"
+                      value={polaroidName}
+                      onChange={(e) => setPolaroidName(e.target.value)}
+                      placeholder="Contoh: Olivia & Mario"
+                      className="w-full px-3 py-2 text-xs bg-[#1A1A18] border border-white/[0.08] rounded-md text-white placeholder-neutral-500 focus:outline-none focus:border-amber-400/40"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-medium text-neutral-400">
+                      Tanggal Acara
+                    </label>
+                    <input
+                      type="text"
+                      value={polaroidDate}
+                      onChange={(e) => setPolaroidDate(e.target.value)}
+                      placeholder="Contoh: 26/06/2026"
+                      className="w-full px-3 py-2 text-xs bg-[#1A1A18] border border-white/[0.08] rounded-md text-white placeholder-neutral-500 focus:outline-none focus:border-amber-400/40"
+                    />
+                  </div>
+                </div>
+
+                {/* Apply Polaroid Button */}
+                <button
+                  type="button"
+                  disabled={generatingPolaroid || uploadingFrame}
+                  onClick={handleApplyDefaultPolaroid}
+                  className="w-full py-2.5 px-4 rounded-md bg-[#F5F4F0] hover:bg-white text-[#0E0E0D] text-xs font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                >
+                  {generatingPolaroid || uploadingFrame ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Sedang Merender &amp; Memasang Bingkai...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Terapkan Bingkai Polaroid Ini</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+
+            {/* TAB 2: UPLOAD CUSTOM .PNG */}
+            {frameTab === 'custom_upload' && (
+              <div className="space-y-3">
+                {currentFrameImage ? (
+                  <div className="relative h-44 rounded-md overflow-hidden border border-white/[0.08] bg-[#0A0A09] flex items-center justify-center">
+                    <img
+                      src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=800&q=80"
+                      alt="Foto Contoh"
+                      className="absolute inset-0 w-full h-full object-cover opacity-60"
+                    />
+                    <img
+                      src={currentFrameImage}
+                      alt="Bingkai Acara"
+                      className="absolute inset-0 w-full h-full object-contain pointer-events-none z-10"
+                    />
+                    <div className="absolute bottom-2 left-2 right-2 px-2 py-1 rounded bg-black/75 backdrop-blur-xs text-[10px] text-neutral-300 text-center z-20">
+                      Pratinjau Bingkai .PNG di atas Foto
+                    </div>
+                  </div>
+                ) : (
+                  <div className="h-32 rounded-md border border-dashed border-white/15 bg-[#0B0B0A] flex flex-col items-center justify-center p-4 text-center">
+                    <Upload className="w-5 h-5 text-neutral-500 mb-1.5" />
+                    <span className="text-xs font-medium text-neutral-300">
+                      Pilih File Bingkai Transparan (.PNG)
+                    </span>
+                    <span className="text-[11px] text-neutral-500 max-w-xs mt-0.5 leading-relaxed">
+                      Unggah file .PNG transparan buatan Anda (misal dari Canva/Photoshop) untuk ditempelkan pada setiap bidikan.
+                    </span>
+                  </div>
+                )}
+
+                <label className="w-full py-2.5 px-4 rounded-md bg-[#1A1A18] hover:bg-[#242422] border border-white/[0.08] text-neutral-200 text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer transition-colors">
+                  <Upload className="w-3.5 h-3.5 text-neutral-400" />
+                  <span>
+                    {uploadingFrame
+                      ? 'Mengunggah...'
+                      : currentFrameImage
+                        ? 'Ganti File Bingkai (.PNG)'
+                        : 'Pilih File Bingkai (.PNG)'}
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/png"
+                    disabled={uploadingFrame}
+                    onChange={(e) => {
+                      handleFrameFileChange(e.target.files?.[0] || null);
+                      e.target.value = '';
+                    }}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+            )}
           </div>
 
           {/* 3. Universal QR Code Card */}

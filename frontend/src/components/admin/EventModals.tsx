@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Camera, Download, Loader2, Trash2, Upload, X } from 'lucide-react';
+import { Camera, Download, Loader2, Sparkles, Trash2, Upload, X } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
+import { generatePolaroidFrameFile } from '@/lib/frame-generator';
 import {
   createAdminEvent,
   deleteAdminEvent,
@@ -45,6 +46,9 @@ export function CreateEventWizardModal({
     string | null
   >(null);
   const [frameFile, setFrameFile] = useState<File | null>(null);
+  const [wizardFrameMode, setWizardFrameMode] = useState<'polaroid' | 'custom' | 'none'>('polaroid');
+  const [wizardPolaroidName, setWizardPolaroidName] = useState('');
+  const [wizardPolaroidDate, setWizardPolaroidDate] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     header_subtitle: 'The Wedding of',
@@ -216,9 +220,26 @@ export function CreateEventWizardModal({
         }
       }
 
-      if (frameFile) {
+      let activeFrameFile = frameFile;
+      if (wizardFrameMode === 'polaroid' && !activeFrameFile) {
         try {
-          await uploadAdminCustomFrame(created.id, frameFile);
+          activeFrameFile = await generatePolaroidFrameFile(
+            {
+              names: wizardPolaroidName.trim() || formData.name || 'Nama Pasangan',
+              date: wizardPolaroidDate.trim() || formatPolaroidDate(formData.start_time),
+            },
+            `polaroid-${created.slug}.png`,
+          );
+        } catch {
+          // fallback
+        }
+      }
+
+      if (activeFrameFile && wizardFrameMode !== 'none') {
+        try {
+          const uploadedFrame = await uploadAdminCustomFrame(created.id, activeFrameFile);
+          created.custom_frame_key = uploadedFrame.file_key;
+          created.custom_frame_url = uploadedFrame.public_url || null;
         } catch {
           showToast('Event dibuat (unggah frame dilewati).');
         }
@@ -506,22 +527,134 @@ export function CreateEventWizardModal({
               )}
             </div>
 
-            <div>
-              <label className="block text-xs font-medium text-neutral-300 mb-1">
-                Bingkai Foto (.PNG Transparan - Opsional)
-              </label>
-              <label className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-md border border-dashed border-white/15 bg-[#0B0B0A] hover:bg-[#161614] cursor-pointer text-xs text-neutral-300">
-                <Upload className="w-3.5 h-3.5 text-neutral-400" />
-                <span>
-                  {frameFile ? frameFile.name : 'Pilih file PNG bingkai acara'}
-                </span>
-                <input
-                  type="file"
-                  accept="image/png"
-                  onChange={(e) => setFrameFile(e.target.files?.[0] || null)}
-                  className="hidden"
-                />
-              </label>
+            <div className="space-y-3 p-3.5 rounded-lg bg-[#0F0F0E] border border-white/[0.08]">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-neutral-200">
+                  Bingkai Digital (.PNG)
+                </label>
+                {wizardFrameMode === 'polaroid' && (
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    Polaroid Otomatis
+                  </span>
+                )}
+                {wizardFrameMode === 'custom' && frameFile && (
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    File Siap
+                  </span>
+                )}
+                {wizardFrameMode === 'none' && (
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-white/[0.05] text-neutral-400 border border-white/[0.08]">
+                    Tanpa Bingkai
+                  </span>
+                )}
+              </div>
+
+              {/* Selector Tabs */}
+              <div className="grid grid-cols-3 gap-1.5 p-1 rounded-md bg-[#161614] border border-white/[0.06] text-xs">
+                <button
+                  type="button"
+                  onClick={() => setWizardFrameMode('polaroid')}
+                  className={`py-1.5 px-2 rounded font-medium text-center transition-all flex items-center justify-center gap-1 ${
+                    wizardFrameMode === 'polaroid'
+                      ? 'bg-[#292926] text-white shadow-xs border border-white/10'
+                      : 'text-neutral-400 hover:text-neutral-200'
+                  }`}
+                >
+                  <Sparkles className="w-3 h-3 text-amber-400" />
+                  <span>Polaroid Default</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setWizardFrameMode('custom')}
+                  className={`py-1.5 px-2 rounded font-medium text-center transition-all flex items-center justify-center gap-1 ${
+                    wizardFrameMode === 'custom'
+                      ? 'bg-[#292926] text-white shadow-xs border border-white/10'
+                      : 'text-neutral-400 hover:text-neutral-200'
+                  }`}
+                >
+                  <Upload className="w-3 h-3" />
+                  <span>Upload .PNG</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setWizardFrameMode('none')}
+                  className={`py-1.5 px-2 rounded font-medium text-center transition-all flex items-center justify-center gap-1 ${
+                    wizardFrameMode === 'none'
+                      ? 'bg-[#292926] text-white shadow-xs border border-white/10'
+                      : 'text-neutral-400 hover:text-neutral-200'
+                  }`}
+                >
+                  <span>Tanpa Bingkai</span>
+                </button>
+              </div>
+
+              {wizardFrameMode === 'polaroid' && (
+                <div className="space-y-3 pt-1">
+                  {/* Mini Mockup Preview */}
+                  <div className="flex flex-col items-center justify-center py-3 px-2 bg-[#080807] rounded-md border border-white/[0.06]">
+                    <div className="w-[140px] bg-[#FFFFFF] rounded-xs shadow-[0_8px_20px_rgba(0,0,0,0.5)] p-2 pb-2.5 border border-neutral-300 select-none">
+                      <div className="relative aspect-[3/3.6] w-full bg-neutral-900 rounded-[1px] overflow-hidden border border-black/10">
+                        <img
+                          src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=400&q=80"
+                          alt="Foto Contoh"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="pt-2 text-center space-y-0.5">
+                        <div
+                          className="text-lg text-neutral-900 leading-tight italic truncate px-1"
+                          style={{ fontFamily: "'Alex Brush', 'Dancing Script', 'Great Vibes', cursive" }}
+                        >
+                          {wizardPolaroidName.trim() || formData.name || 'Nama Pasangan'}
+                        </div>
+                        <div className="text-[9px] font-semibold text-neutral-700 tracking-wider">
+                          {wizardPolaroidDate.trim() || formatPolaroidDate(formData.start_time)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <span className="text-[10px] text-neutral-400">Nama di Bingkai</span>
+                      <input
+                        type="text"
+                        value={wizardPolaroidName}
+                        onChange={(e) => setWizardPolaroidName(e.target.value)}
+                        placeholder={formData.name || 'Contoh: Olivia & Mario'}
+                        className="w-full px-2.5 py-1.5 text-xs bg-[#1A1A18] border border-white/[0.08] rounded text-white placeholder-neutral-500 focus:outline-none focus:border-amber-400/40"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-[10px] text-neutral-400">Tanggal Acara</span>
+                      <input
+                        type="text"
+                        value={wizardPolaroidDate}
+                        onChange={(e) => setWizardPolaroidDate(e.target.value)}
+                        placeholder="Contoh: 26/06/2026"
+                        className="w-full px-2.5 py-1.5 text-xs bg-[#1A1A18] border border-white/[0.08] rounded text-white placeholder-neutral-500 focus:outline-none focus:border-amber-400/40"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {wizardFrameMode === 'custom' && (
+                <div className="space-y-2 pt-1">
+                  <label className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-md border border-dashed border-white/15 bg-[#0B0B0A] hover:bg-[#161614] cursor-pointer text-xs text-neutral-300">
+                    <Upload className="w-3.5 h-3.5 text-neutral-400" />
+                    <span>
+                      {frameFile ? frameFile.name : 'Pilih file PNG bingkai acara'}
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/png"
+                      onChange={(e) => setFrameFile(e.target.files?.[0] || null)}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              )}
             </div>
 
             <label className="flex items-center justify-between p-3 rounded-md bg-[#0B0B0A] border border-white/[0.08] cursor-pointer">
@@ -636,6 +769,26 @@ interface EditEventModalProps {
   showToast: (msg: string) => void;
 }
 
+function formatPolaroidDate(isoString?: string | null): string {
+  if (!isoString) {
+    const now = new Date();
+    const d = String(now.getDate()).padStart(2, '0');
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const y = now.getFullYear();
+    return `${d}/${m}/${y}`;
+  }
+  try {
+    const dt = new Date(isoString);
+    if (isNaN(dt.getTime())) return '26/06/2026';
+    const d = String(dt.getDate()).padStart(2, '0');
+    const m = String(dt.getMonth() + 1).padStart(2, '0');
+    const y = dt.getFullYear();
+    return `${d}/${m}/${y}`;
+  } catch {
+    return '26/06/2026';
+  }
+}
+
 export function EditEventModal({
   editingEvent,
   isDemoMode,
@@ -658,6 +811,12 @@ export function EditEventModal({
     string | null
   >(null);
   const [isFrameCleared, setIsFrameCleared] = useState(false);
+  const [editFrameTab, setEditFrameTab] = useState<'default_polaroid' | 'custom_upload'>(
+    'default_polaroid',
+  );
+  const [editPolaroidName, setEditPolaroidName] = useState('');
+  const [editPolaroidDate, setEditPolaroidDate] = useState('');
+  const [isGeneratingPolaroid, setIsGeneratingPolaroid] = useState(false);
   const [editFormData, setEditFormData] = useState({
     name: '',
     header_subtitle: 'The Wedding of',
@@ -691,6 +850,8 @@ export function EditEventModal({
     setEditModalFramePreview(
       editingEvent.custom_frame_url || localCustom?.custom_frame_url || null,
     );
+    setEditPolaroidName(localCustom?.name || editingEvent.name || '');
+    setEditPolaroidDate(formatPolaroidDate(editingEvent.start_time));
     setEditFormData({
       name: localCustom?.name || editingEvent.name,
       header_subtitle:
@@ -715,6 +876,36 @@ export function EditEventModal({
   }, [editingEvent]);
 
   if (!editingEvent) return null;
+
+  const handleGenerateEditPolaroid = async () => {
+    if (isGeneratingPolaroid) return;
+    setIsGeneratingPolaroid(true);
+    try {
+      const file = await generatePolaroidFrameFile(
+        {
+          names: editPolaroidName.trim() || editFormData.name || 'Nama Pasangan',
+          date: editPolaroidDate.trim(),
+        },
+        `polaroid-${editFormData.slug || 'frame'}.png`,
+      );
+
+      setEditModalFrameFile(file);
+      setIsFrameCleared(false);
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          setEditModalFramePreview(reader.result);
+        }
+      };
+      reader.readAsDataURL(file);
+      showToast('Bingkai Polaroid siap diterapkan! Klik Simpan Perubahan.');
+    } catch (err) {
+      showToast((err as Error).message || 'Gagal menghasilkan bingkai.');
+    } finally {
+      setIsGeneratingPolaroid(false);
+    }
+  };
 
   const handleSaveEditEvent = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1126,39 +1317,21 @@ export function EditEventModal({
           </div>
         </div>
 
-        <div>
-          <label className="block text-xs font-medium text-neutral-300 mb-1">
-            Bingkai Foto Digital (.PNG Transparan - Opsional)
-          </label>
-          <div className="flex gap-2">
-            <label className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-md border border-dashed border-white/15 bg-[#0B0B0A] hover:bg-[#161614] cursor-pointer text-xs text-neutral-300">
-              <Upload className="w-3.5 h-3.5 text-neutral-400" />
-              <span className="truncate">
-                {editModalFrameFile
-                  ? editModalFrameFile.name
-                  : editModalFramePreview
-                    ? 'Bingkai Terpasang (Klik untuk Ganti)'
-                    : 'Pilih File PNG Bingkai'}
-              </span>
-              <input
-                type="file"
-                accept="image/png"
-                onChange={(e) => {
-                  const f = e.target.files?.[0] || null;
-                  if (!f) return;
-                  setEditModalFrameFile(f);
-                  setIsFrameCleared(false);
-                  const reader = new FileReader();
-                  reader.onload = () => {
-                    if (typeof reader.result === 'string') {
-                      setEditModalFramePreview(reader.result);
-                    }
-                  };
-                  reader.readAsDataURL(f);
-                }}
-                className="hidden"
-              />
+        <div className="space-y-3 p-3.5 rounded-lg bg-[#0F0F0E] border border-white/[0.08]">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-semibold text-neutral-200 flex items-center gap-1.5">
+              <span>Bingkai Digital (.PNG)</span>
+              {(editModalFramePreview || editModalFrameFile) ? (
+                <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  Aktif
+                </span>
+              ) : (
+                <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-white/[0.05] text-neutral-400 border border-white/[0.08]">
+                  Belum Ada
+                </span>
+              )}
             </label>
+
             {(editModalFramePreview || editModalFrameFile) && (
               <button
                 type="button"
@@ -1167,12 +1340,146 @@ export function EditEventModal({
                   setEditModalFramePreview(null);
                   setIsFrameCleared(true);
                 }}
-                className="px-3 py-2 rounded-md bg-[#1A1A18] hover:bg-[#242422] border border-white/[0.08] text-xs text-neutral-300"
+                className="px-2 py-0.5 rounded text-[10px] font-medium bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 transition-colors"
               >
-                Hapus Frame
+                Hapus Bingkai
               </button>
             )}
           </div>
+
+          {/* Mode Selector Tabs */}
+          <div className="grid grid-cols-2 gap-1.5 p-1 rounded-md bg-[#161614] border border-white/[0.06] text-xs">
+            <button
+              type="button"
+              onClick={() => setEditFrameTab('default_polaroid')}
+              className={`py-1.5 px-2.5 rounded font-medium text-center transition-all flex items-center justify-center gap-1.5 ${
+                editFrameTab === 'default_polaroid'
+                  ? 'bg-[#292926] text-white shadow-xs border border-white/10'
+                  : 'text-neutral-400 hover:text-neutral-200'
+              }`}
+            >
+              <Sparkles className="w-3 h-3 text-amber-400" />
+              <span>Polaroid Default</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditFrameTab('custom_upload')}
+              className={`py-1.5 px-2.5 rounded font-medium text-center transition-all flex items-center justify-center gap-1.5 ${
+                editFrameTab === 'custom_upload'
+                  ? 'bg-[#292926] text-white shadow-xs border border-white/10'
+                  : 'text-neutral-400 hover:text-neutral-200'
+              }`}
+            >
+              <Upload className="w-3 h-3" />
+              <span>Upload .PNG</span>
+            </button>
+          </div>
+
+          {/* TAB 1: POLAROID DEFAULT */}
+          {editFrameTab === 'default_polaroid' && (
+            <div className="space-y-3 pt-1">
+              {/* Mini Mockup Preview */}
+              <div className="flex flex-col items-center justify-center py-3 px-2 bg-[#080807] rounded-md border border-white/[0.06]">
+                <div className="w-[150px] bg-[#FFFFFF] rounded-xs shadow-[0_8px_20px_rgba(0,0,0,0.5)] p-2 pb-2.5 border border-neutral-300 select-none">
+                  <div className="relative aspect-[3/3.6] w-full bg-neutral-900 rounded-[1px] overflow-hidden border border-black/10">
+                    <img
+                      src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=400&q=80"
+                      alt="Foto Contoh"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="pt-2 text-center space-y-0.5">
+                    <div
+                      className="text-lg text-neutral-900 leading-tight italic truncate px-1"
+                      style={{ fontFamily: "'Alex Brush', 'Dancing Script', 'Great Vibes', cursive" }}
+                    >
+                      {editPolaroidName.trim() || editFormData.name || 'Nama Pasangan'}
+                    </div>
+                    <div className="text-[9px] font-semibold text-neutral-700 tracking-wider">
+                      {editPolaroidDate.trim() || '26/06/2026'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Inputs */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <span className="text-[10px] text-neutral-400">Nama Pasangan</span>
+                  <input
+                    type="text"
+                    value={editPolaroidName}
+                    onChange={(e) => setEditPolaroidName(e.target.value)}
+                    placeholder="Contoh: Olivia & Mario"
+                    className="w-full px-2.5 py-1.5 text-xs bg-[#1A1A18] border border-white/[0.08] rounded text-white placeholder-neutral-500 focus:outline-none focus:border-amber-400/40"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <span className="text-[10px] text-neutral-400">Tanggal Acara</span>
+                  <input
+                    type="text"
+                    value={editPolaroidDate}
+                    onChange={(e) => setEditPolaroidDate(e.target.value)}
+                    placeholder="Contoh: 26/06/2026"
+                    className="w-full px-2.5 py-1.5 text-xs bg-[#1A1A18] border border-white/[0.08] rounded text-white placeholder-neutral-500 focus:outline-none focus:border-amber-400/40"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="button"
+                disabled={isGeneratingPolaroid}
+                onClick={handleGenerateEditPolaroid}
+                className="w-full py-2 px-3 rounded bg-[#F5F4F0] hover:bg-white text-[#0E0E0D] text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
+              >
+                {isGeneratingPolaroid ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Sedang Membuat Polaroid...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Buat &amp; Pasang Polaroid Ini</span>
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+
+          {/* TAB 2: UPLOAD CUSTOM .PNG */}
+          {editFrameTab === 'custom_upload' && (
+            <div className="space-y-2 pt-1">
+              <label className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-md border border-dashed border-white/15 bg-[#0B0B0A] hover:bg-[#161614] cursor-pointer text-xs text-neutral-300">
+                <Upload className="w-3.5 h-3.5 text-neutral-400" />
+                <span className="truncate">
+                  {editModalFrameFile
+                    ? editModalFrameFile.name
+                    : editModalFramePreview
+                      ? 'Bingkai Terpasang (Klik untuk Ganti)'
+                      : 'Pilih File PNG Bingkai'}
+                </span>
+                <input
+                  type="file"
+                  accept="image/png"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0] || null;
+                    if (!f) return;
+                    setEditModalFrameFile(f);
+                    setIsFrameCleared(false);
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      if (typeof reader.result === 'string') {
+                        setEditModalFramePreview(reader.result);
+                      }
+                    };
+                    reader.readAsDataURL(f);
+                  }}
+                  className="hidden"
+                />
+              </label>
+            </div>
+          )}
         </div>
 
         <label className="flex items-center justify-between p-3 rounded-md bg-[#0B0B0A] border border-white/[0.08] cursor-pointer">
