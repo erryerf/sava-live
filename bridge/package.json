@@ -1,0 +1,14 @@
+{
+  "name": "sava-desktop-bridge",
+  "version": "1.0.0",
+  "description": "Lightweight Hot-Folder Bridge for Sava Live (supports Canon EOS Utility, Sony Imaging Edge, Fujifilm X Acquire, Nikon NX Tether, etc.)",
+  "type": "module",
+  "main": "sava-bridge.mjs",
+  "scripts": {
+    "start": "node sava-bridge.mjs"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
+

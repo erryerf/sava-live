@@ -431,19 +431,25 @@ export default function EventControlRoom({
           for await (const entry of dirHandle.values()) {
             if (
               entry.kind === 'file' &&
+              !entry.name.startsWith('.') &&
               /\.(jpe?g|png|webp)$/i.test(entry.name) &&
               !syncedFileNamesRef.current.has(entry.name)
             ) {
-              syncedFileNamesRef.current.add(entry.name);
-              const file = await entry.getFile();
-              await processSinglePhotographerFile(file);
-              showToast(`Foto baru "${entry.name}" otomatis tayang! 📸`);
+              // Wait briefly to ensure camera/EOS Utility finished writing file
+              const firstFile = await entry.getFile();
+              await new Promise((r) => setTimeout(r, 350));
+              const stableFile = await entry.getFile();
+              if (stableFile.size > 0 && stableFile.size === firstFile.size) {
+                syncedFileNamesRef.current.add(entry.name);
+                await processSinglePhotographerFile(stableFile);
+                showToast(`Foto baru "${entry.name}" otomatis tayang! 📸`);
+              }
             }
           }
         } catch {
           // Ignore transient read errors while camera writes file
         }
-      }, 2500);
+      }, 2000);
     } catch {
       // User cancelled directory picker
     }
@@ -982,13 +988,38 @@ export default function EventControlRoom({
                 Pilih banyak foto langsung dari galeri iPad / Android atau kartu memori kamera.
               </p>
 
+              {/* Link Khusus HP Kru / Fotografer Keliling (Canon Camera Connect / Creators' App) */}
+              <div className="p-2.5 rounded-md bg-[#0B0B0A] border border-white/[0.07] flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="text-[11px] font-medium text-neutral-200">
+                    Link Kru HP Fotografer (Roving)
+                  </div>
+                  <div className="text-[10px] font-mono text-neutral-500 truncate">
+                    /crew/{selectedEvent.slug}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    copyText(
+                      `${originUrl.replace(/\/+$/, '')}/crew/${selectedEvent.slug}`,
+                      'Link Mode Kru HP',
+                    )
+                  }
+                  className="shrink-0 px-2.5 py-1.5 rounded bg-[#1A1A18] hover:bg-[#242422] border border-white/[0.08] text-[11px] font-medium text-amber-300 flex items-center gap-1 transition-colors"
+                >
+                  <Copy className="w-3 h-3" />
+                  <span>Salin Link</span>
+                </button>
+              </div>
+
               {/* Opsi Tambahan untuk Tethering Kabel Laptop jika dibutuhkan */}
               <button
                 type="button"
                 onClick={() => setShowFtpAdvanced((prev) => !prev)}
                 className="w-full flex items-center justify-between text-[11px] font-medium text-neutral-500 hover:text-neutral-300 py-1"
               >
-                <span>Opsi Lanjutan Kabel USB Laptop</span>
+                <span>Opsi Lanjutan Kabel USB / Wi-Fi Laptop</span>
                 {showFtpAdvanced ? (
                   <ChevronUp className="w-3.5 h-3.5" />
                 ) : (
@@ -1028,9 +1059,33 @@ export default function EventControlRoom({
                     <span>
                       {watchedFolderName
                         ? `Hentikan Sinkronisasi "${watchedFolderName}"`
-                        : 'Sinkronisasi Folder Komputer'}
+                        : 'Sinkronisasi Folder Komputer (Browser)'}
                     </span>
                   </button>
+
+                  <div className="p-2.5 rounded bg-[#0B0B0A] border border-white/[0.07] space-y-1.5">
+                    <div className="text-[11px] font-medium text-neutral-300">
+                      Sava Desktop Bridge (Background Agent)
+                    </div>
+                    <p className="text-[10px] text-neutral-500 leading-relaxed">
+                      Otomatis filter JPEG &amp; auto-retry saat Wi-Fi venue putus:
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        copyText(
+                          `node bridge/sava-bridge.mjs --slug ${selectedEvent.slug} --dir "D:\\FotoAcara"`,
+                          'Perintah Desktop Bridge',
+                        )
+                      }
+                      className="w-full text-left p-1.5 rounded bg-[#141413] border border-white/[0.07] font-mono text-[9px] text-neutral-400 hover:border-white/20 flex items-center justify-between gap-2"
+                    >
+                      <span className="truncate">
+                        node bridge/sava-bridge.mjs --slug {selectedEvent.slug}
+                      </span>
+                      <Copy className="w-3 h-3 shrink-0 text-neutral-500" />
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
